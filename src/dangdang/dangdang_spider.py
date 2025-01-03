@@ -2,7 +2,7 @@
 Author: wamgzwu
 Date: 2024-12-30 15:45:40
 LastEditors: wamgzwu wangzw26@outlook.com
-LastEditTime: 2025-01-03 11:08:29
+LastEditTime: 2025-01-03 21:11:15
 FilePath: \jfj_spider\dangdang_spider.py
 Description: 当当采集
 '''
@@ -32,7 +32,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("data_collection.log", mode='a', encoding='utf-8'),
+        logging.FileHandler("dangdang_data_collection.log", mode='a', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -40,7 +40,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 # 检测是否登录, 如果没有则提示用户请登录(这里登录需要用户手动辅助)
 def check_login(tab, adapter):
-    if len(tab.eles("x://span[@id='nickname']//a[@dd_name='登录']", timeout = 3)) != 0: #需要登录
+    if len(tab.eles("x://span[@id='nickname']//a[@dd_name='登录']", timeout = 1)) != 0: #需要登录
         time.sleep(2)
         tab.ele("x://span[@id='nickname']//a[@dd_name='登录']").click()
         while True:
@@ -51,7 +51,15 @@ def check_login(tab, adapter):
             adapter.warning("需要人工辅助登录!")
     else:
         adapter.info("检测到已登录, 开始采集数据")
-
+def extract_price(price_string):
+    # 正则表达式：匹配以"¥"开头的价格，捕获价格数字（包括小数）
+    match = re.search(r'(\d+(\.\d+)?)', price_string)
+    
+    if match:
+        # 提取匹配到的数字部分并转换为浮动数
+        return match.group(1)
+    else:
+        return None  # 如果没有找到有效价格，返回 None
 def img_to_base64(img_url, id):
     response = requests.get(img_url)
     time.sleep(1)
@@ -95,12 +103,13 @@ def crawl_data(mode: int):
                 if mode == 1: # 全量模式
                     adapter.info(f"第{page_num}页第{i}条数据开始更新!")
                     # 采集价格和评论数
-                    new_price = float(li.ele("x://p[@class='price']//span[@class='search_now_price']", timeout = 2).text.split('¥')[-1])
+                    new_price_str = li.ele("x://p[@class='price']//span[@class='search_now_price']", timeout = 1).text
+                    new_price = float(extract_price(new_price_str))
                     try:
-                        new_comment_num_str = li.ele("x://p[@class='search_star_line']//a[@class='search_comment_num']", timeout = 2).text
+                        new_comment_num_str = li.ele("x://p[@class='search_star_line']//a[@class='search_comment_num']", timeout = 1).text
                         new_comment_num = int(re.search(r'\d+', new_comment_num_str).group())
                     except Exception as e:
-                        new_comment_num = 'NULL'
+                        new_comment_num = None
                     update_data_to_database(f'dangdang_{id}', new_price, new_comment_num, adapter)
                 else:
                     adapter.info(f"第{page_num}页第{i}条数据已存在,跳过!")
@@ -109,7 +118,7 @@ def crawl_data(mode: int):
                 publish_time_str = li.ele("x://p[@class='search_book_author']//span[2]").text.split('/')[-1]
                 publish_time = datetime.strptime(publish_time_str, '%Y-%m-%d')
             except Exception as e:
-                publish_time = 'NULL'
+                publish_time = None
             # title = li.ele("x://p[@name='title']").text # 标题
             detail_url = li.ele("x://a").attr('href') # 详情页
             # 进入详情页采集数据
@@ -120,28 +129,29 @@ def crawl_data(mode: int):
             image_src = new_tab.ele("#largePic").attr('src')
             # 获取图片链接,并将其转为base64码
             img_base64 = img_to_base64(image_src, id)
-            product_info = new_tab.ele("#product_info", timeout=3)
+            product_info = new_tab.ele("#product_info", timeout=1)
             title = product_info.ele("x://div[@class='name_info']//h1").text
             # 书的简介
             # introduce_book = product_info.ele("x://h2//span[@class='head_title_name']")
             # 作者
             try:
-                author = product_info.ele("#author").ele("x://a", timeout=3).text
+                author = product_info.ele("#author").ele("x://a", timeout=1).text
             except Exception as e:
                 author = ""
             # 出版社
             try:
-                publisher = product_info.ele("x://span[@ddt-area='003']//a", timeout=3).text
+                publisher = product_info.ele("x://span[@ddt-area='003']//a", timeout=1).text
             except Exception as e:
                 publisher = ""
             # 评论数
             try:
-                comment_num = product_info.ele("#messbox_info_comm_num", timeout=2).ele("x://a", timeout=2).text
+                comment_num = product_info.ele("x://span[@id='messbox_info_comm_num' and @style='']//a", timeout=1).text
             except Exception as e:
-                adapter.error(e)
-                comment_num = 'NULL'
+                # adapter.error(e)
+                comment_num = None
             # 价格
-            price = product_info.ele("#dd-price").text.split('¥')[-1]
+            price_str = product_info.ele("#dd-price").text
+            price = float(extract_price(price_str))
             describe = new_tab.ele("#detail_describe").eles("x://ul//li")
             ISBN = ""
             formats = ""
@@ -165,7 +175,7 @@ def crawl_data(mode: int):
             
             # 编辑推荐
             try:
-                editor_recommendations_parent = new_tab.ele("#abstract", timeout=4)
+                editor_recommendations_parent = new_tab.ele("#abstract", timeout=1)
                 if editor_recommendations_parent.ele("x://div[@class='descrip']//span[@id='abstract-all']").text == '':
                     editor_recommendations = editor_recommendations_parent.ele("x://div[@class='descrip']").text
                 else:
@@ -174,7 +184,7 @@ def crawl_data(mode: int):
                 editor_recommendations = ""
             # 内容简介
             try:
-                content_intro_parent = new_tab.ele("#content", timeout=4)
+                content_intro_parent = new_tab.ele("#content", timeout=1)
                 if content_intro_parent.ele("x://div[@class='descrip']//span[@id='content-all']").text == '':
                     content_intro = content_intro_parent.ele("x://div[@class='descrip']").text
                 else:
@@ -183,7 +193,7 @@ def crawl_data(mode: int):
                 content_intro = ""
             # 作者简介
             try:
-                author_intro_parent = new_tab.ele("#authorIntroduction", timeout=4)
+                author_intro_parent = new_tab.ele("#authorIntroduction", timeout=1)
                 if author_intro_parent.ele("x://div[@class='descrip']//span[@id='authorIntroduction-all']").text == '':
                     author_intro = author_intro_parent.ele("x://div[@class='descrip']").text
                 else:
@@ -192,7 +202,7 @@ def crawl_data(mode: int):
                 author_intro = ""
             # 目录
             try:
-                catalogue_parent = new_tab.ele("#catalog", timeout=4)
+                catalogue_parent = new_tab.ele("#catalog", timeout=1)
                 if catalogue_parent.ele("x://div[@class='descrip']//span[@id='catalog-show-all']").text == '':
                     catalogue = catalogue_parent.ele("x://div[@class='descrip']").text
                 else:
@@ -201,7 +211,7 @@ def crawl_data(mode: int):
                 catalogue = ""
             # 前言
             try:
-                preface_parent = new_tab.ele("#preface", timeout=4)
+                preface_parent = new_tab.ele("#preface", timeout=1)
                 if preface_parent.ele("x://div[@class='descrip']//span[@id='preface-show-all']").text == '':
                     preface = preface_parent.ele("x://div[@class='descrip']").text
                 else:
@@ -222,7 +232,7 @@ def crawl_data(mode: int):
                 "ISBN": ISBN,
                 "subcategory": category,
                 "price": float(price),
-                "evaluation_number": int(comment_num),
+                "evaluation_number": int(comment_num) if comment_num is not None else None,
                 "package": package,
                 "is_set": is_set, # 套装
                 "format": formats, # 开本
@@ -231,7 +241,8 @@ def crawl_data(mode: int):
                 "image_url": image_src,
                 "image_base64": img_base64,
                 "page_url": detail_url,
-                "data_source": "当当网",
+                "data_type": "当当",
+                "data_status": "1",
                 "book_type": "1"
             }
             result_data.append(data)
@@ -286,7 +297,11 @@ def update_data_to_database(id, price, evaluation_number, adapter):
             # print("成功连接到数据库")
             # 查询所有需要更新的数据
             cursor = connection.cursor()
-            update_query = f"UPDATE rs_correct_resources SET price={price}, evaluation_number={evaluation_number} WHERE str_id='{id}'"
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if evaluation_number is None:
+                update_query = f"UPDATE rs_correct_resources SET price={price}, update_time='{current_time}' WHERE str_id='{id}'"
+            else:
+                update_query = f"UPDATE rs_correct_resources SET price={price}, evaluation_number={evaluation_number}, update_time='{current_time}' WHERE str_id='{id}'"
             cursor.execute(update_query)
             connection.commit()
             adapter.info("数据已更新到数据库")
@@ -307,44 +322,62 @@ def save_data_to_database(result_data, adapter):
             database="reslib",
             charset="utf8mb4"  # 设置字符集为utf8mb4
         )
-
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        data_dict = {
+            "str_id": result_data[0]["str_id"],
+            "title": result_data[0]["title"],
+            "author": result_data[0]["author"],
+            "author_intro": result_data[0]["author_intro"],
+            "publish": result_data[0]["publisher"],
+            "publish_time": result_data[0]["publish_time"],
+            "catalogue": result_data[0]["catalogue"],
+            "preface": result_data[0]["preface"],
+            "content_intro": result_data[0]["content_intro"],
+            "ISBN": result_data[0]["ISBN"],
+            "subcategory": result_data[0]["subcategory"],
+            "price": result_data[0]["price"],
+            "evaluation_number": result_data[0]["evaluation_number"],
+            "packages": result_data[0]["package"],
+            "is_set": result_data[0]["is_set"],
+            "format": result_data[0]["format"],
+            "paper": result_data[0]["paper"],
+            "editor_recommendations": result_data[0]["editor_recommendations"],
+            "image_url": result_data[0]["image_url"],
+            "image_base64": result_data[0]["image_base64"],
+            "page_url": result_data[0]["page_url"],
+            "data_type": result_data[0]["data_type"],
+            "data_status": result_data[0]["data_status"],
+            "create_time": current_time,
+            "update_time": current_time,
+            "deleted": 0,
+            "book_type": result_data[0]["book_type"]
+        }
         if connection.open:
-            # print("成功连接到数据库")
-            # print(f"共{len(result_data)}条数据")
-            count = 0 #计数
-            for row in result_data:
-                # 插入数据的SQL语句
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                insert_query = f"""
-                INSERT INTO rs_correct_resources (
-                    str_id, title, all_title, series_titles, author, author_intro, editor, publish, 
-                    publish_time, publish_place, catalogue, preface, content_intro, abstracts, ISBN, 
-                    language, keyword, document_type, subcategory, product_features, price, 
-                    evaluation_number, People_buy, sellers_number, packages, brand, product_code, 
-                    is_set, format, paper, collection_information, editor_recommendations, pages, 
-                    words, edition, version, additional_version, Illustration_url, image_url, image_base64, page_url, 
-                    data_source, data_type, data_status, creator, create_time, updater, update_time, 
-                    deleted, tenant_id, may, book_type
-                ) VALUES (
-                    '{row['str_id']}', '{row['title']}', '', '', '{row['author']}', '{row['author_intro']}',
-                    '', '{row['publisher']}', '{row['publish_time']}', '', '{row['catalogue']}', 
-                    '{row['preface']}', '{row['content_intro']}', '', '{row['ISBN']}', '', '', '', '{row['subcategory']}', '', {row['price']}, {row['evaluation_number']}, NULL, NULL, '{row['package']}', 
-                    '', '', '{row['is_set']}', '{row['format']}', '{row['paper']}', '', '{row['editor_recommendations']}', 
-                    NULL, NULL, NULL, '', '', '', '{row['image_url']}', '{row['image_base64']}',
-                    '{row['page_url']}', '{row['data_source']}', '', '', '', NULL, 
-                    '', NULL, 0, NULL, NULL, '{row['book_type']}'
-                );
-                """
-                cursor = connection.cursor()
-                cursor.execute(insert_query)
-                # 提交到数据库
-                connection.commit()
-                count += 1
-                # print(f"第{count}条数据已成功插入到表中")
-                adapter.info(f"第{count}条数据已成功插入到表中")
+            cursor = connection.cursor()
+            str_sql_head = 'INSERT INTO rs_correct_resources'
+            str_sql_middle = ""
+            str_sql_value = ""
+            value_list = []
+            for key,value in data_dict.items():
+                if value:
+                    str_sql_middle = str_sql_middle + key + ","
+                    str_sql_value += "%s,"
+                    value_list.append(value)
+            #去除末尾,
+            str_sql_middle = str_sql_middle.rstrip(",")
+            str_sql_value = str_sql_value.rstrip(",")
+
+            str_sql_middle = f"({str_sql_middle})"
+            str_sql_value = f"VALUES ({str_sql_value})"
+
+            all_sql_str = f"{str_sql_head} {str_sql_middle} {str_sql_value}"
+            # adapter.info(f'sql语句:{all_sql_str}')
+            cursor.execute(all_sql_str,value_list)
+            connection.commit()
+            adapter.info(f"数据已成功插入到表中")
 
     except Exception as e:
-        # print("错误:", e)
+       # print("错误:", e)
         adapter.error(e)
 
     finally:
