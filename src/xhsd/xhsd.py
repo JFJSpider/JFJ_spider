@@ -68,6 +68,9 @@ class ZrclData:
         self.kou_shu = None                 #口述
         self.ce_hua_ren = None              #策划人
         self.ban_quan_ti_gong_zhe = None    #版权提供者
+        self.dian_zi_shu_shang_xian_shi_jian = None #电子书上线时间
+        self.shi_fou_you_dian_zi_shu = None #是否有电子书
+        self.zhu_zuo_quan_he_tong_deng_ji_hao = None    #著作权合同登记号
     def to_stander(self):
         """
         将 ZrclDataType 类实例转换为 数据库 格式。
@@ -122,6 +125,18 @@ class ZrclData:
                     continue
             if tmp_parser_time_flag:
                 raise ValueError(f"Date string format is not recognized: {self.chu_ban_shi_jian}")
+
+        if self.dian_zi_shu_shang_xian_shi_jian is not None:
+            tmp_parser_time_flag = 1
+            for fmt in formats:
+                try:
+                    self.dian_zi_shu_shang_xian_shi_jian = datetime.strptime(self.dian_zi_shu_shang_xian_shi_jian, fmt)
+                    tmp_parser_time_flag = 0
+                    break
+                except ValueError as e:
+                    continue
+            if tmp_parser_time_flag:
+                raise ValueError(f"Date string format is not recognized: {self.dian_zi_shu_shang_xian_shi_jian}")
 
         if self.yin_shua_shi_jian is not None:
             tmp_parser_time_flag = 1
@@ -297,7 +312,10 @@ def save_in_db(need_save:ZrclData):
         "subcategory":need_save.fen_lei,
         "oral_narration":need_save.kou_shu,
         "planner":need_save.ce_hua_ren,
-        "copyright_provider":need_save.ban_quan_ti_gong_zhe
+        "copyright_provider":need_save.ban_quan_ti_gong_zhe,
+        "e_book_release_time":need_save.dian_zi_shu_shang_xian_shi_jian,
+        "is_have_e_book":need_save.shi_fou_you_dian_zi_shu,
+        "copyright_number":need_save.zhu_zuo_quan_he_tong_deng_ji_hao
     }
     str_sql_head = 'INSERT INTO reslib.rs_correct_resources'
     str_sql_middle = ""
@@ -593,6 +611,18 @@ def main():
 
                     if '版权提供者' in text_each_attribute:
                         one_element.ban_quan_ti_gong_zhe = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '电子书上线时间' in text_each_attribute:
+                        one_element.dian_zi_shu_shang_xian_shi_jian = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '著作权合同登记号' in text_each_attribute:
+                        one_element.zhu_zuo_quan_he_tong_deng_ji_hao = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '是否有电子书' in text_each_attribute:
+                        one_element.shi_fou_you_dian_zi_shu = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
                     if '绘者' in text_each_attribute:
