@@ -1,7 +1,9 @@
 import argparse
+import re
 import time
 from datetime import datetime
 from decimal import Decimal,ROUND_HALF_UP
+from idlelib.replace import replace
 
 from DrissionPage import Chromium,ChromiumOptions
 import requests
@@ -59,16 +61,94 @@ class ZrclData:
         self.shi_fou_tao_zhuang = None      #是否套装
         self.hui_zhe = None                 #绘者
         self.jiao_zhu = None                #校注
-
+        self.zhuang_zhen = None             #装帧
+        self.cong_shu_ming = None           #从书名
+        self.ban_ci = None                  #版次
+        self.fen_lei = None                 #分类情况
+        self.kou_shu = None                 #口述
+        self.ce_hua_ren = None              #策划人
+        self.ban_quan_ti_gong_zhe = None    #版权提供者
     def to_stander(self):
         """
         将 ZrclDataType 类实例转换为 数据库 格式。
         """
         #时间格式化
         #印刷时间，出版时间，首版时间
-        if self.yin_zhang:
+
+        formats = [
+            '%Y-%m-%d %H:%M:%S',  # 包含完整日期和时间
+            '%Y-%m-%d',  # 包含年份、月份和日期
+            '%Y-%m',  # 仅包含年份和月份
+        ]
+
+        if self.yin_zhang is not None:
             self.yin_zhang = float(self.yin_zhang)
 
+        if self.zi_shu is not None:
+            if "千字" in self.zi_shu:
+                self.zi_shu = self.zi_shu.replace("千字","000").strip()
+            if "千" in self.zi_shu:
+                self.zi_shu = self.zi_shu.replace("千","000").strip()
+
+        if self.ye_shu is not None:
+            if "页)" in self.ye_shu:
+                pattern = r"\((.*?)\)"  # 使用非贪婪模式 .*? 匹配括号内的内容
+                matches = re.findall(pattern, self.ye_shu)
+                self.ye_shu = matches[0].replace("页","")
+            if "页" in self.ye_shu:
+                self.ye_shu = self.ye_shu.replace("页","").strip()
+
+        if self.ban_ci is not None:
+            contains_digit = any(char.isdigit() for char in self.ban_ci)    #判断版次是否包含数字，不包含则跳过
+            if contains_digit:
+                if "版" in self.ban_ci:
+                    self.ban_ci = self.ban_ci.replace("版","").strip()
+
+            else:
+                self.ban_ci = None
+
+
+
+
+
+        if self.chu_ban_shi_jian is not None:
+            tmp_parser_time_flag = 1
+            for fmt in formats:
+                try:
+                    self.chu_ban_shi_jian = datetime.strptime(self.chu_ban_shi_jian, fmt)
+                    tmp_parser_time_flag = 0
+                    break
+                except ValueError as e:
+                    continue
+            if tmp_parser_time_flag:
+                raise ValueError(f"Date string format is not recognized: {self.chu_ban_shi_jian}")
+
+        if self.yin_shua_shi_jian is not None:
+            tmp_parser_time_flag = 1
+            for fmt in formats:
+                try:
+                    self.yin_shua_shi_jian = datetime.strptime(self.yin_shua_shi_jian, fmt)
+                    tmp_parser_time_flag = 0
+                    break
+                except ValueError as e:
+                    continue
+            if tmp_parser_time_flag:
+                raise ValueError(f"Date string format is not recognized: {self.yin_shua_shi_jian}")
+
+        if self.shou_ban_shi_jian is not None:
+            tmp_parser_time_flag = 1
+            for fmt in formats:
+                try:
+                    self.shou_ban_shi_jian = datetime.strptime(self.shou_ban_shi_jian, fmt)
+                    tmp_parser_time_flag = 0
+                    break
+                except ValueError as e:
+                    continue
+            if tmp_parser_time_flag:
+                raise ValueError(f"Date string format is not recognized: {self.shou_ban_shi_jian}")
+
+            if self.kou_shu is not None:
+                self.kou_shu = self.kou_shu.replace("口述:","").strip()
 
 
 
@@ -210,7 +290,14 @@ def save_in_db(need_save:ZrclData):
         "compiler":need_save.zheng_li,
         "is_set":need_save.shi_fou_tao_zhuang,
         "drawer":need_save.hui_zhe,
-        "annotation": need_save.jiao_zhu
+        "annotation": need_save.jiao_zhu,
+        "binding":need_save.zhuang_zhen,
+        "series_titles":need_save.cong_shu_ming,
+        "edition":need_save.ban_ci,
+        "subcategory":need_save.fen_lei,
+        "oral_narration":need_save.kou_shu,
+        "planner":need_save.ce_hua_ren,
+        "copyright_provider":need_save.ban_quan_ti_gong_zhe
     }
     str_sql_head = 'INSERT INTO reslib.rs_correct_resources'
     str_sql_middle = ""
@@ -275,7 +362,7 @@ def main():
     scan_num = 0
     update_num = 0
     co = ChromiumOptions()
-    #co.headless(True)
+    co.headless(True)
     #co.set_load_mode('eager')
     browser = Chromium(co)
     # browser = Chromium()
@@ -403,6 +490,16 @@ def main():
                 #url
                 one_element.url = article_tab.url
 
+
+                #分类
+                li_all_apart = article_tab.ele(".breadcrumb").children()
+                for li_each_apart in li_all_apart[:-1]:
+                    if one_element.fen_lei is None:
+                        one_element.fen_lei = ""
+                    one_element.fen_lei += f"{li_each_apart.text}<"
+                if one_element.fen_lei is not None:
+                    one_element.fen_lei = one_element.fen_lei.rstrip("<")
+
                 #id
                 article_id = article_tab.ele("@id=id").attr("value")
                 one_element.str_id = f"xhsd_{article_id}"
@@ -429,7 +526,10 @@ def main():
 
                 #封面部分
                 image_img = article_tab.ele(".item-detail-parent").ele(".image-container").ele("@tag()=img")
-                one_element.image_64 = get_base64_from_url(image_img.attr("src"))
+                try:
+                    one_element.image_64 = get_base64_from_url(image_img.attr("src"))
+                except Exception as e:
+                    adapter.debug(f"列表{list_count+1}-{page_next}/{max_page_num}页-页内第{inpage_count}个 BASE64无法获得，str_id={one_element.str_id} url={one_element.url}")
                 one_element.image_url = image_img.attr("src")
 
                 #列表部分
@@ -453,12 +553,34 @@ def main():
                         one_element.yin_shu = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
+                    if '版次' in text_each_attribute:
+                        one_element.ban_ci = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
                     if '媒质' in text_each_attribute:
                         one_element.mei_zhi = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
+                    if '丛书名' in text_each_attribute:
+                        one_element.cong_shu_ming = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '策划人' in text_each_attribute:
+                        one_element.ce_hua_ren = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '定价' in text_each_attribute:
+                        continue
+
+                    if '页码' in text_each_attribute:
+                        continue
+
                     if '用纸' in text_each_attribute:
                         one_element.yong_zhi = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '装帧' in text_each_attribute:
+                        one_element.zhuang_zhen = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
                     if '是否注音' in text_each_attribute:
@@ -467,6 +589,10 @@ def main():
 
                     if '作者' in text_each_attribute:
                         one_element.author = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '版权提供者' in text_each_attribute:
+                        one_element.ban_quan_ti_gong_zhe = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
                     if '绘者' in text_each_attribute:
@@ -506,7 +632,11 @@ def main():
                         continue
 
                     if '高' in text_each_attribute:
-                        one_element.gao = tr_each_attribute.eles("t=td")[1].text.strip()
+                        one_element.gao = tr_each_attribute.eles("t=td")[1].text.replace("cm","").strip()
+                        continue
+
+                    if '口述' in text_each_attribute:
+                        one_element.kou_shu = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
                     if '正文语种' in text_each_attribute:
@@ -539,6 +669,8 @@ def main():
 
                     if '字数' in text_each_attribute:
                         one_element.zi_shu = tr_each_attribute.eles("t=td")[1].text.strip()
+                        if "千字" in one_element.zi_shu:
+                            one_element.zi_shu = one_element.zi_shu.replace("千字","000")
                         continue
 
                     if '首版时间' in text_each_attribute:
