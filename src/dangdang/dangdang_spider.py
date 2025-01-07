@@ -2,7 +2,7 @@
 Author: wamgzwu
 Date: 2024-12-30 15:45:40
 LastEditors: wamgzwu wangzw26@outlook.com
-LastEditTime: 2025-01-03 21:11:15
+LastEditTime: 2025-01-07 16:03:45
 FilePath: \jfj_spider\dangdang_spider.py
 Description: 当当采集
 '''
@@ -125,8 +125,12 @@ def crawl_data(mode: int):
             new_tab = browser.new_tab(detail_url)
             time.sleep(random.randint(1, 3))
             new_tab.wait.doc_loaded()
-            
-            image_src = new_tab.ele("#largePic").attr('src')
+            try:
+                image_src = new_tab.ele("#largePic").attr('src')
+            except Exception as e:
+                adapter.error(f"该书籍没有图片!URL:{detail_url}")
+                browser.close_tabs(new_tab)
+                continue
             # 获取图片链接,并将其转为base64码
             img_base64 = img_to_base64(image_src, id)
             product_info = new_tab.ele("#product_info", timeout=1)
