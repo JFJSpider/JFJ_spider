@@ -120,6 +120,8 @@ def crawl_data(mode: int):
                 else:
                     adapter.info(f"第{page+1}页第{count}条数据已存在!")
                 continue
+            # 把str_id加到集合中
+            exist_ids.add(str_id)
             book_pic_href = book.ele("x://a//img[@class='book_pic']", timeout=1).attr("src")
             image_base64 = img_to_base64(book_pic_href) # 图片转base64
             title = book_info.ele("x://p[@class='title']", timeout=1).text
