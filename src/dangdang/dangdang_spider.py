@@ -38,6 +38,7 @@ logging.basicConfig(
 )
 # 创建 logger 对象
 logger = logging.getLogger(__name__)
+
 # 检测是否登录, 如果没有则提示用户请登录(这里登录需要用户手动辅助)
 def check_login(tab, adapter):
     if len(tab.eles("x://span[@id='nickname']//a[@dd_name='登录']", timeout = 1)) != 0: #需要登录
@@ -51,6 +52,8 @@ def check_login(tab, adapter):
             adapter.warning("需要人工辅助登录!")
     else:
         adapter.info("检测到已登录, 开始采集数据")
+
+
 def extract_price(price_string):
     # 正则表达式：匹配以"¥"开头的价格，捕获价格数字（包括小数）
     match = re.search(r'(\d+(\.\d+)?)', price_string)
@@ -311,6 +314,7 @@ def update_data_to_database(id, price, evaluation_number, adapter):
         if connection.open:
             cursor.close()
             connection.close()
+            
 def save_data_to_database(result_data, adapter):
     try:
         # 连接到MySQL数据库
