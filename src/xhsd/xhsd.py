@@ -71,6 +71,7 @@ class ZrclData:
         self.dian_zi_shu_shang_xian_shi_jian = None #电子书上线时间
         self.shi_fou_you_dian_zi_shu = None #是否有电子书
         self.zhu_zuo_quan_he_tong_deng_ji_hao = None    #著作权合同登记号
+        self.she_ying = None                #摄影
     def to_stander(self):
         """
         将 ZrclDataType 类实例转换为 数据库 格式。
@@ -106,13 +107,16 @@ class ZrclData:
             if contains_digit:
                 if "版" in self.ban_ci:
                     self.ban_ci = self.ban_ci.replace("版","").strip()
-
+                if "第" in self.ban_ci:
+                    self.ban_ci = self.ban_ci.replace("第","").strip()
             else:
                 self.ban_ci = None
 
-
-
-
+        if self.chu_ci is not None:
+            if "版" in self.chu_ci:
+                self.chu_ci = self.chu_ci.replace("版","").strip()
+            if "第" in self.chu_ci:
+                self.chu_ci = self.chu_ci.replace("第","").strip()
 
         if self.chu_ban_shi_jian is not None:
             tmp_parser_time_flag = 1
@@ -315,7 +319,8 @@ def save_in_db(need_save:ZrclData):
         "copyright_provider":need_save.ban_quan_ti_gong_zhe,
         "e_book_release_time":need_save.dian_zi_shu_shang_xian_shi_jian,
         "is_have_e_book":need_save.shi_fou_you_dian_zi_shu,
-        "copyright_number":need_save.zhu_zuo_quan_he_tong_deng_ji_hao
+        "copyright_number":need_save.zhu_zuo_quan_he_tong_deng_ji_hao,
+        "photographer":need_save.she_ying
     }
     str_sql_head = 'INSERT INTO reslib.rs_correct_resources'
     str_sql_middle = ""
@@ -380,7 +385,7 @@ def main():
     scan_num = 0
     update_num = 0
     co = ChromiumOptions()
-    co.headless(True)
+    #co.headless(True)
     #co.set_load_mode('eager')
     browser = Chromium(co)
     # browser = Chromium()
@@ -411,7 +416,7 @@ def main():
 
         while page_next <= max_page_num:
             adapter.info(f"列表{list_count+1}-{page_next}/{max_page_num}页开始采集")
-            if duplicate_time >= 50:
+            if duplicate_time >= max_duplicate_time:
                 #如果重复次数大于等于50 则退出
                 break
 
@@ -577,6 +582,10 @@ def main():
 
                     if '媒质' in text_each_attribute:
                         one_element.mei_zhi = tr_each_attribute.eles("t=td")[1].text.strip()
+                        continue
+
+                    if '摄影' in text_each_attribute:
+                        one_element.she_ying = tr_each_attribute.eles("t=td")[1].text.strip()
                         continue
 
                     if '丛书名' in text_each_attribute:
