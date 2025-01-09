@@ -95,6 +95,7 @@ def crawl_data(mode: int):
             permanentId = cookie['value']
     adapter.info(f"获取到token: {token}")
     adapter.info(f"获取到permanentId: {permanentId}")
+    time.sleep(2)
     # 获取总页数
     page_num_str = tab.ele("x://div[@id='leftWrap']//div[@id='pageWrap']//span[@id='countNum']", timeout=1).text
     page_num = int(re.search(r'\d+', page_num_str).group())
@@ -104,8 +105,8 @@ def crawl_data(mode: int):
         adapter.info(f"开始采集第 {page+1} 页数据...")
         book_list = tab.ele("#conditionList").eles("x://div[@class='list book_list_wrap clearfix']", timeout=1)
         count = 0
-        result_data = []
         for book in book_list:
+            result_data = []
             book_info = book.ele("x://div[@class='detail_con']", timeout=1)
             detail_url = book_info.ele("x://p[@class='title']//a", timeout=1).attr("href")
             id = detail_url.split("/")[-1].split(".")[0]
@@ -116,7 +117,7 @@ def crawl_data(mode: int):
                     # 全量模式更新价钱
                     price_str = book_info.ele("x://p[@class='price']", timeout=1).text
                     price = extract_price(price_str)
-                    update_data_to_database(price, adapter)
+                    update_data_to_database(str_id, price, adapter)
                 else:
                     adapter.info(f"第{page+1}页第{count}条数据已存在!")
                 continue
@@ -190,6 +191,7 @@ def crawl_data(mode: int):
         # 翻页
         if page !=  page_num - 1:
             tab.ele("x://div[@id='pageWrap']//p[@class='nextPage']", timeout=1).click()
+            time.sleep(random.randint(1,2)) # 翻页之后稍微等一下, 防止数据还没加载就已经开始采集, 那样采集的就是上一页的
 
 
 
