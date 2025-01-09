@@ -23,7 +23,7 @@ def download_video(url, str_id):
     if response.status_code == 200:
         # 打开文件并写入内容
         with open(save_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=1024):
+            for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
 
@@ -157,7 +157,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("rmwsp.log", mode='a', encoding='utf-8'),
+        logging.FileHandler("rmwxzyjhsp.log", mode='a', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -245,7 +245,7 @@ def main():
                 one_element_start_time = time.time()
                 adapter.info(f"列表{list_count+1}-{page_next}/{max_page_num}页-页内第{inpage_count}个开始采集")
                 id_now = href_each_video.split("/")[-1].replace(".html","")
-                id_now = f"rmwsp_{id_now}"
+                id_now = f"rmwxzyjhsp_{id_now}"
                 duplicate_flag,book_title = is_duplicate(id_now)
                 if duplicate_flag:
                     #如果重复了
@@ -290,7 +290,7 @@ def main():
 
                 #id
                 article_id = one_element.url.split("/")[-1].replace(".html","")
-                one_element.str_id = f"rmwsp_{article_id}"
+                one_element.str_id = f"rmwxzyjhsp_{article_id}"
 
                 #title
                 one_element.title = video_tab.ele(".video-layer-title").text
