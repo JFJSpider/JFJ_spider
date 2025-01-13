@@ -1,4 +1,4 @@
-'''
+r'''
 Author: wamgzwu
 Date: 2024-12-30 15:45:40
 LastEditors: wamgzwu wangzw26@outlook.com
@@ -120,7 +120,7 @@ def crawl_data(mode: int):
                 publish_time_str = li.ele("x://p[@class='search_book_author']//span[2]").text.split('/')[-1]
                 publish_time = datetime.strptime(publish_time_str, '%Y-%m-%d')
             except Exception as e:
-                publish_time = None
+                publish_time_str = None
             # title = li.ele("x://p[@name='title']").text # 标题
             exist_ids.add(f'dangdang_{id}')
             detail_url = li.ele("x://a").attr('href') # 详情页

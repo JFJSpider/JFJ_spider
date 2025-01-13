@@ -4,10 +4,10 @@ from psycopg2 import sql
 class DatabaseManager:
     # 默认数据库连接配置
     DB_CONFIG = {
-        'host': 'localhost',           # 数据库主机
-        'port': 5432,                  # PostgreSQL 默认端口
-        'user': 'postgres',       # 数据库用户名
-        'password': '123456',   # 数据库密码
+        'host': '10.101.221.240',           # 数据库主机
+        'port': "54321",                  # PostgreSQL 默认端口
+        'user': 'reslib',       # 数据库用户名
+        'password': '1qaz3edc123!@#',   # 数据库密码
         'dbname': 'reslib' # 数据库名称
     }
 
