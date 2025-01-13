@@ -211,22 +211,25 @@ def crawl_data(mode: int):
             try:
                 # 提取包含出版年份的文本
                 publication_info = new_tab.ele("x://div[@class='center fl']//p").text
-                # 通过正则表达式提取年份信息
+                
+                # 使用正则表达式提取年份
                 import re
                 match = re.search(r"(\d{4})年出版", publication_info)  # 匹配四位数字和"年出版"
-    
+                
                 if match:
-                    # 提取年份并格式化
+                    # 提取年份
                     publication_year = match.group(1)
-                    # 将年份转换为完整日期格式 (yyyy-01-01 00:00:00)
-                    publication_year = f'{publication_year}-01-01 00:00:00'
+                    
+                    # 将年份转换为完整的日期格式 (YYYY-MM-DD)
+                    publication_date = f"{publication_year}-01-01"  # 默认设置为 1 月 1 日
                 else:
-                    publication_year = ""  # 如果没有找到匹配的年份
+                    publication_date = ""  # 如果未找到匹配的年份，设置为空字符串
 
             except Exception as e:
-                publication_year = ""  # 出现异常时返回空字符串
+                publication_date = ""  # 出现异常时返回空字符串
 
-            print(f"出版年份: {publication_year}")
+            print(f"出版日期: {publication_date}")
+
 
 
 
@@ -320,7 +323,7 @@ def crawl_data(mode: int):
                 "author": author,  # 作者
                 "author_intro": author_intro,  # 作者简介
                 "publisher": publisher,  # 出版社
-                "publish_time": publication_year,  # 出版年份
+                "publish_time": publication_date,  # 出版年份
                 "content_intro": content_intro,  # 图书简介
                 "content_section": final_content,  # 精彩篇章内容（含标题、内容和链接）
                 "image_url": image_src,  # 图片链接
