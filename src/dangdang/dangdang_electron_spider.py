@@ -7,6 +7,7 @@ import base64
 import re
 from datetime import datetime
 import pymysql
+from connect2dbs import DatabaseManager
 import argparse
 
 BASE_URL = "https://e.dangdang.com/media/api.go?action=searchMedia&enable_f=1&promotionType=1&keyword=%E5%86%9B%E4%BA%8B&deviceSerialNo=html5&macAddr=html5&channelType=html5&returnType=json&channelId=70000&clientVersionNo=6.8.0&platformSource=DDDS-P&fromPlatform=106&deviceType=pconline&stype=media&mediaTypes=1%2C2"
@@ -99,7 +100,7 @@ def crawl_data(mode: int):
     # 获取总页数
     page_num_str = tab.ele("x://div[@id='leftWrap']//div[@id='pageWrap']//span[@id='countNum']", timeout=1).text
     page_num = int(re.search(r'\d+', page_num_str).group())
-    exist_ids = load_existing_ids()
+    exist_ids = select_AlldataID_from_database(adapter)
     adapter.info(f"总共 {page_num} 页数据...")
     for page in range(page_num):
         adapter.info(f"开始采集第 {page+1} 页数据...")
@@ -178,7 +179,7 @@ def crawl_data(mode: int):
                     "editor_recommendations": editor_recommendations,
                     "words": word_count,
                     "image_url": book_pic_href,
-                    "image_base64": image_base64,
+                    "base64_url": image_base64,
                     "page_url": detail_url,
                     "data_type": "当当",
                     "data_status": "1",
@@ -262,102 +263,65 @@ def load_existing_ids():
             cursor.close()
             connection.close()
 
-
+def select_AlldataID_from_database(adapter):
+    db_manager = DatabaseManager()
+    db_manager.connect()
+    query = f"SELECT str_id FROM rs_correct_resources"
+    results = db_manager.execute_query(query)
+    if results is not None:
+        allll = set([row[0] for row in results])
+        return allll
+    else:
+        adapter.info("数据查询为空!")
+        return []
 
 # 数据更新
 def update_data_to_database(id, price, adapter):
-    try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
-            host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
-            password="123456",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
-        )
-        if connection.open:
-            # print("成功连接到数据库")
-            # 查询所有需要更新的数据
-            cursor = connection.cursor()
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            update_query = f"UPDATE rs_correct_resources SET price={price}, update_time='{current_time}' WHERE str_id='{id}'"
-            cursor.execute(update_query)
-            connection.commit()
-            adapter.info("数据已更新到数据库")
-    except Exception as e:
-        adapter.error(e)
-    finally:
-        if connection.open:
-            cursor.close()
-            connection.close()
+    db_manager = DatabaseManager()
+    db_manager.connect()
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    columns  = ['"price"', '"update_time"']
+    values = [price, current_time]
+    db_manager.update('rs_correct_resources', columns, values, 'str_id', id)
+    adapter.info(f"数据[{id}]已存在, 已对其进行更新!")
 
 def save_data_to_database(result_data, adapter):
-    try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
-            host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
-            password="123456",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
-        )
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        data_dict = {
-            "str_id": result_data[0]["str_id"],
-            "title": result_data[0]["title"],
-            "author": result_data[0]["author"],
-            "publish": result_data[0]["publisher"],
-            "publish_time": result_data[0]["publish_time"],
-            "catalogue": result_data[0]["catalogue"],
-            "content_intro": result_data[0]["content_intro"],
-            "ISBN": result_data[0]["ISBN"],
-            "subcategory": result_data[0]["subcategory"],
-            "price": result_data[0]["price"],
-            "evaluation_number": result_data[0]["evaluation_number"],
-            "editor_recommendations": result_data[0]["editor_recommendations"],
-            "words": result_data[0]["words"],
-            "image_url": result_data[0]["image_url"],
-            "image_base64": result_data[0]["image_base64"],
-            "page_url": result_data[0]["page_url"],
-            "data_type": result_data[0]["data_type"],
-            "data_status": result_data[0]["data_status"],
-            "create_time": current_time,
-            "update_time": current_time,
-            "deleted": 0,
-            "book_type": result_data[0]["book_type"]
-        }
-        if connection.open:
-            cursor = connection.cursor()
-            str_sql_head = 'INSERT INTO rs_correct_resources'
-            str_sql_middle = ""
-            str_sql_value = ""
-            value_list = []
-            for key,value in data_dict.items():
-                if value:
-                    str_sql_middle = str_sql_middle + key + ","
-                    str_sql_value += "%s,"
-                    value_list.append(value)
-            #去除末尾,
-            str_sql_middle = str_sql_middle.rstrip(",")
-            str_sql_value = str_sql_value.rstrip(",")
-            str_sql_middle = f"({str_sql_middle})"
-            str_sql_value = f"VALUES ({str_sql_value})"
-            all_sql_str = f"{str_sql_head} {str_sql_middle} {str_sql_value}"
-            cursor.execute(all_sql_str,value_list)
-            connection.commit()
-            adapter.info(f"数据已成功插入到表中")
-
-    except Exception as e:
-       # print("错误:", e)
-        adapter.error(e)
-
-    finally:
-        if connection.open:
-            cursor.close()
-            connection.close()
-            # print("数据库连接已关闭")
+    db_manager = DatabaseManager()
+    db_manager.connect()
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    data_dict = {
+        "str_id": result_data[0]["str_id"],
+        "title": result_data[0]["title"],
+        "author": result_data[0]["author"],
+        "publish": result_data[0]["publisher"],
+        "publish_time": result_data[0]["publish_time"],
+        "catalogue": result_data[0]["catalogue"],
+        "content_intro": result_data[0]["content_intro"],
+        "ISBN": result_data[0]["ISBN"],
+        "subcategory": result_data[0]["subcategory"],
+        "price": result_data[0]["price"],
+        "evaluation_number": result_data[0]["evaluation_number"],
+        "editor_recommendations": result_data[0]["editor_recommendations"],
+        "words": result_data[0]["words"],
+        "image_url": result_data[0]["image_url"],
+        "base64_url": result_data[0]["base64_url"],
+        "page_url": result_data[0]["page_url"],
+        "data_type": result_data[0]["data_type"],
+        "data_status": result_data[0]["data_status"],
+        "create_time": current_time,
+        "update_time": current_time,
+        "deleted": 0,
+        "book_type": result_data[0]["book_type"]
+    }
+    columns = []
+    values = []
+    for key, value in data_dict.items():
+        if value is not None:
+            columns.append('"'+key+'"')
+            values.append(value)
+    db_manager.insert('rs_correct_resources', columns, values)
+    adapter.info(f"数据已成功插入到表中")
+    db_manager.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="当当网电子书数据采集")
