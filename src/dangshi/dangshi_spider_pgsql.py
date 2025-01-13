@@ -132,18 +132,22 @@ def crawl_data(mode: int):
             new_tab = browser.new_tab(detail_url)
             time.sleep(random.randint(1, 3))
             new_tab.wait.doc_loaded()
-            
-            
-         
-            #image_element = new_tab.ele("x://div[@class='left fl']//img",timeout=20)
 
-            image_element = new_tab.ele("x://div[@class='p1_left fl']//img",timeout=20)
+            image_element = None
+            try:
+                image_element = new_tab.ele("x://div[@class='left fl']//img",timeout=20)
+            except Exception as e:
+                try:
+                    image_element = new_tab.ele("x://div[@class='p1_left fl']//img",timeout=20)
+                except Exception as e:
+                    adapter.info(f"第{page_num}页第{i}条图片模板错误，无法获取图片/无图片")
+                    pass
 
             
-                 
-            image_src = image_element.attr('src')
-            # 获取图片链接,并将其转为base64码
-            img_base64 = img_to_base64(image_src,id)
+            if image_element is not None:
+                image_src = image_element.attr('src')
+                # 获取图片链接,并将其转为base64码
+                img_base64 = img_to_base64(image_src,id)
 
             
 
@@ -194,22 +198,24 @@ def crawl_data(mode: int):
             try:
                 # 提取包含出版年份的文本
                 publication_info = new_tab.ele("x://div[@class='center fl']//p").text
-                # 通过正则表达式提取年份信息
+                
+                # 使用正则表达式提取年份
                 import re
                 match = re.search(r"(\d{4})年出版", publication_info)  # 匹配四位数字和"年出版"
-    
+                
                 if match:
-                    # 提取年份并格式化
+                    # 提取年份
                     publication_year = match.group(1)
-                    # 将年份转换为完整日期格式 (yyyy-01-01 00:00:00)
-                    publication_year = f'{publication_year}-01-01 00:00:00'
+                    
+                    # 将年份转换为完整的日期格式 (YYYY-MM-DD)
+                    publication_date = f"{publication_year}-01-01"  
                 else:
-                    publication_year = ""  # 如果没有找到匹配的年份
+                    publication_date = None  # 如果未找到匹配的年份，设置为空字符串
 
             except Exception as e:
-                publication_year = ""  # 出现异常时返回空字符串
+                publication_date = None  # 出现异常时返回空字符串
 
-            print(f"出版年份: {publication_year}")
+            print(f"出版日期: {publication_date}")
 
 
             # 获取作者简介
@@ -292,7 +298,7 @@ def crawl_data(mode: int):
                 "author": author,  # 作者
                 "author_intro": author_intro,  # 作者简介
                 "publisher": publisher,  # 出版社
-                "publish_time": publication_year,  # 出版年份
+                "publish_time": publication_date,  # 出版年份
                 "content_intro": content_intro,  # 图书简介
                 "content_section": final_content,  # 精彩篇章内容（含标题、内容和链接）
                 "image_url": image_src,  # 图片链接
@@ -317,12 +323,11 @@ def select_data_from_database(dataid, adapter):
     try:
         # 建立数据库连接
         connection = psycopg2.connect(
-            host="localhost",  # 主机名
-            port=5432,  # PostgreSQL 默认端口
-            user="postgres",  # 数据库用户名
-            password="geek742028",  # 数据库密码
-            dbname="postgres",  # 数据库名称
-            options="-c client_encoding=UTF8"  # 确保使用 UTF-8 编码
+            host="10.101.221.240",  # 数据库主机地址
+            port="54321",
+            user="reslib",  # 用户名
+            password="1qaz3edc123!@#",  # 密码
+            dbname="reslib"  # 数据库名称
         )
         print("成功连接到数据库")
         print(f"dataid: {dataid}")
@@ -354,14 +359,14 @@ def select_data_from_database(dataid, adapter):
 
 def get_connection():
     """统一管理数据库连接"""
-    return psycopg2.connect(
-        host="localhost",  # 主机名
-        port=5432,         # PostgreSQL 默认端口
-        user="postgres",   # 数据库用户名
-        password="geek742028",  # 数据库密码
-        dbname="postgres",  # 数据库名称
-        options="-c client_encoding=UTF8"  # 确保使用 UTF-8 编码
+    connection = psycopg2.connect(
+        host="10.101.221.240",  # 数据库主机地址
+        port="54321",
+        user="reslib",  # 用户名
+        password="1qaz3edc123!@#",  # 密码
+        dbname="reslib"  # 数据库名称
     )
+    return connection
 
 def update_data_to_database(id, price, evaluation_number, adapter):
     """更新数据到数据库"""
@@ -397,7 +402,6 @@ def save_data_to_database(result_data, adapter):
         connection = get_connection()
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data_dict = {
-            "id":result_data[0]["id"],
             "str_id": result_data[0]["str_id"],
             "title": result_data[0]["title"],
             "author": result_data[0]["author"],

@@ -66,12 +66,12 @@ class ZrclWorkList:
 
 
 def read_config():
-    with open('../../script/config/config.ymal', 'r', encoding='utf-8') as file:
+    with open('../../script/config/config.yaml', 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
     return config
 
 def read_new_config(work_list:ZrclWorkList):
-    with open('../script/config/config.ymal', 'r', encoding='utf-8') as file:
+    with open('../script/config/config.yaml', 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
     for each_cite_config in config['need_get_cites']:
         cite_name = each_cite_config['name']
@@ -209,8 +209,52 @@ def main():
                 subprocess.run(['python', './../rmwxzyjhsp/rmwxzyjhsp_postgre.py', '-m', '1'])
                 work_arrangement.update_full_time_date(need_process_work_task_now.work.cite_name)
             else:
-                #如果是全量
+                #如果是增量
                 subprocess.run(['python', './../rmwxzyjhsp/rmwxzyjhsp_postgre.py', '-m', '0','-d', f'{need_process_work_task_now.work.max_duplicate}'])
                 work_arrangement.update_incremental_time_date(need_process_work_task_now.work.cite_name)
+        elif need_process_work_task_now.work.cite_name == "dangshi":
+            if need_process_work_task_now.is_full_task:
+                #如果是全量
+                subprocess.run(['python', './../dangshi/dangshi_spider2_pgsql.py', '-m', '1'])
+                work_arrangement.update_full_time_date(need_process_work_task_now.work.cite_name)
+            else:
+                #如果是增量
+                subprocess.run(['python', './../dangshi/dangshi_spider2_pgsql.py', '-m', '0'])
+                work_arrangement.update_incremental_time_date(need_process_work_task_now.work.cite_name)
+        elif need_process_work_task_now.work.cite_name == "dangdang_Ebook":
+            if need_process_work_task_now.is_full_task:
+                #如果是全量
+                subprocess.run(['python', './../dangdang/dangdang_electron_spider.py', '-m', '1'])
+                work_arrangement.update_full_time_date(need_process_work_task_now.work.cite_name)
+            else:
+                #如果是增量
+                subprocess.run(['python', './../dangdang/dangdang_electron_spider.py', '-m', '0'])
+                work_arrangement.update_incremental_time_date(need_process_work_task_now.work.cite_name)
+        elif need_process_work_task_now.work.cite_name == "jingdong":
+            if need_process_work_task_now.is_full_task:
+                #如果是全量
+                subprocess.run(['python', './../jingdong/jingdong_spider_pg.py', '-m', '1'])
+                work_arrangement.update_full_time_date(need_process_work_task_now.work.cite_name)
+            else:
+                #如果是增量
+                subprocess.run(['python', './../jingdong/jingdong_spider_pg.py', '-m', '0'])
+                work_arrangement.update_incremental_time_date(need_process_work_task_now.work.cite_name)
+        elif need_process_work_task_now.work.cite_name == "jingdong_dvd":
+            if need_process_work_task_now.is_full_task:
+                #如果是全量
+                subprocess.run(['python', './../jingdong/jingdong_dvd_spider_pg.py', '-m', '1'])
+                work_arrangement.update_full_time_date(need_process_work_task_now.work.cite_name)
+            else:
+                #如果是增量
+                subprocess.run(['python', './../jingdong/jingdong_dvd_spider_pg.py', '-m', '0'])
+
+        elif need_process_work_task_now.work.cite_name == "kong_fu_zi":
+            if need_process_work_task_now.is_full_task:
+                #如果是全量
+                subprocess.run(['python', './../kongfuzi/kongfuzi_spider.py', '-m', '0'])
+                work_arrangement.update_full_time_date(need_process_work_task_now.work.cite_name)
+            else:
+                #如果是增量
+                subprocess.run(['python', './../kongfuzi/kongfuzi_spider.py', '-m', '1'])
 if __name__ == '__main__':
     main()

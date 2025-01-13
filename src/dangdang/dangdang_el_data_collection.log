@@ -262,3 +262,78 @@
 2025-01-13 15:45:12,449 - INFO - [Full Mode] 数据[dangdang_el_1900374546]已存在, 已对其进行更新!
 2025-01-13 15:45:15,321 - INFO - [Full Mode] 第 1 页, 第 5 本数据详情请求成功!
 2025-01-13 15:45:15,373 - INFO - [Full Mode] 数据已成功插入到表中
+2025-01-13 22:39:25,480 - INFO - [Increment Mode] 开始采集当当网电子书数据...
+2025-01-13 22:39:32,714 - WARNING - [Increment Mode] 需要人工辅助登录!
+2025-01-13 22:39:35,729 - WARNING - [Increment Mode] 需要人工辅助登录!
+2025-01-13 22:39:38,738 - WARNING - [Increment Mode] 需要人工辅助登录!
+2025-01-13 22:39:38,852 - INFO - [Increment Mode] 登录成功!
+2025-01-13 22:39:38,856 - INFO - [Increment Mode] 获取到token: pc_84c4ec5a9910d6b396c5156b161a9f6e1241a551124ca4ecf7f62426d755cf41
+2025-01-13 22:39:38,856 - INFO - [Increment Mode] 获取到permanentId: 20250113223927349104341533484547847
+2025-01-13 22:39:41,266 - INFO - [Increment Mode] 总共 27 页数据...
+2025-01-13 22:39:41,266 - INFO - [Increment Mode] 开始采集第 1 页数据...
+2025-01-13 22:39:41,280 - INFO - [Increment Mode] 第1页第1条数据已存在!
+2025-01-13 22:39:41,283 - INFO - [Increment Mode] 第1页第2条数据已存在!
+2025-01-13 22:39:41,286 - INFO - [Increment Mode] 第1页第3条数据已存在!
+2025-01-13 22:39:41,288 - INFO - [Increment Mode] 第1页第4条数据已存在!
+2025-01-13 22:39:41,291 - INFO - [Increment Mode] 第1页第5条数据已存在!
+2025-01-13 22:39:41,293 - INFO - [Increment Mode] 第1页第6条数据已存在!
+2025-01-13 22:39:41,296 - INFO - [Increment Mode] 第1页第7条数据已存在!
+2025-01-13 22:39:41,299 - INFO - [Increment Mode] 第1页第8条数据已存在!
+2025-01-13 22:39:41,301 - INFO - [Increment Mode] 第1页第9条数据已存在!
+2025-01-13 22:39:41,304 - INFO - [Increment Mode] 第1页第10条数据已存在!
+2025-01-13 22:39:42,520 - INFO - [Increment Mode] 开始采集第 2 页数据...
+2025-01-13 22:39:42,530 - INFO - [Increment Mode] 第2页第1条数据已存在!
+2025-01-13 22:39:42,532 - INFO - [Increment Mode] 第2页第2条数据已存在!
+2025-01-13 22:39:42,534 - INFO - [Increment Mode] 第2页第3条数据已存在!
+2025-01-13 22:39:42,538 - INFO - [Increment Mode] 第2页第4条数据已存在!
+2025-01-13 22:39:42,541 - INFO - [Increment Mode] 第2页第5条数据已存在!
+2025-01-13 22:39:42,543 - INFO - [Increment Mode] 第2页第6条数据已存在!
+2025-01-13 22:39:42,546 - INFO - [Increment Mode] 第2页第7条数据已存在!
+2025-01-13 22:39:42,548 - INFO - [Increment Mode] 第2页第8条数据已存在!
+2025-01-13 22:39:42,550 - INFO - [Increment Mode] 第2页第9条数据已存在!
+2025-01-13 22:39:42,553 - INFO - [Increment Mode] 第2页第10条数据已存在!
+2025-01-13 22:39:43,770 - INFO - [Increment Mode] 开始采集第 3 页数据...
+2025-01-13 22:39:43,782 - INFO - [Increment Mode] 第3页第1条数据已存在!
+2025-01-13 22:39:43,784 - INFO - [Increment Mode] 第3页第2条数据已存在!
+2025-01-13 22:39:43,788 - INFO - [Increment Mode] 第3页第3条数据已存在!
+2025-01-13 22:39:43,791 - INFO - [Increment Mode] 第3页第4条数据已存在!
+2025-01-13 22:39:43,795 - INFO - [Increment Mode] 第3页第5条数据已存在!
+2025-01-13 22:39:43,797 - INFO - [Increment Mode] 第3页第6条数据已存在!
+2025-01-13 22:39:43,800 - INFO - [Increment Mode] 第3页第7条数据已存在!
+2025-01-13 22:39:43,804 - INFO - [Increment Mode] 第3页第8条数据已存在!
+2025-01-13 22:39:43,807 - INFO - [Increment Mode] 第3页第9条数据已存在!
+2025-01-13 22:39:43,810 - INFO - [Increment Mode] 第3页第10条数据已存在!
+2025-01-13 22:39:45,026 - INFO - [Increment Mode] 开始采集第 4 页数据...
+2025-01-13 22:39:45,037 - INFO - [Increment Mode] 第4页第1条数据已存在!
+2025-01-13 22:39:45,040 - INFO - [Increment Mode] 第4页第2条数据已存在!
+2025-01-13 22:39:45,042 - INFO - [Increment Mode] 第4页第3条数据已存在!
+2025-01-13 22:39:45,045 - INFO - [Increment Mode] 第4页第4条数据已存在!
+2025-01-13 22:39:45,048 - INFO - [Increment Mode] 第4页第5条数据已存在!
+2025-01-13 22:39:45,050 - INFO - [Increment Mode] 第4页第6条数据已存在!
+2025-01-13 22:39:45,053 - INFO - [Increment Mode] 第4页第7条数据已存在!
+2025-01-13 22:39:45,056 - INFO - [Increment Mode] 第4页第8条数据已存在!
+2025-01-13 22:39:45,059 - INFO - [Increment Mode] 第4页第9条数据已存在!
+2025-01-13 22:39:45,063 - INFO - [Increment Mode] 第4页第10条数据已存在!
+2025-01-13 22:39:47,279 - INFO - [Increment Mode] 开始采集第 5 页数据...
+2025-01-13 22:39:47,288 - INFO - [Increment Mode] 第5页第1条数据已存在!
+2025-01-13 22:39:47,290 - INFO - [Increment Mode] 第5页第2条数据已存在!
+2025-01-13 22:39:47,293 - INFO - [Increment Mode] 第5页第3条数据已存在!
+2025-01-13 22:39:47,294 - INFO - [Increment Mode] 第5页第4条数据已存在!
+2025-01-13 22:39:47,298 - INFO - [Increment Mode] 第5页第5条数据已存在!
+2025-01-13 22:39:47,300 - INFO - [Increment Mode] 第5页第6条数据已存在!
+2025-01-13 22:39:47,303 - INFO - [Increment Mode] 第5页第7条数据已存在!
+2025-01-13 22:39:47,305 - INFO - [Increment Mode] 第5页第8条数据已存在!
+2025-01-13 22:39:47,307 - INFO - [Increment Mode] 第5页第9条数据已存在!
+2025-01-13 22:39:47,310 - INFO - [Increment Mode] 第5页第10条数据已存在!
+2025-01-13 22:39:49,525 - INFO - [Increment Mode] 开始采集第 6 页数据...
+2025-01-13 22:39:49,535 - INFO - [Increment Mode] 第6页第1条数据已存在!
+2025-01-13 22:39:49,537 - INFO - [Increment Mode] 第6页第2条数据已存在!
+2025-01-13 22:39:49,540 - INFO - [Increment Mode] 第6页第3条数据已存在!
+2025-01-13 22:39:49,542 - INFO - [Increment Mode] 第6页第4条数据已存在!
+2025-01-13 22:39:49,544 - INFO - [Increment Mode] 第6页第5条数据已存在!
+2025-01-13 22:39:49,548 - INFO - [Increment Mode] 第6页第6条数据已存在!
+2025-01-13 22:39:49,550 - INFO - [Increment Mode] 第6页第7条数据已存在!
+2025-01-13 22:39:49,553 - INFO - [Increment Mode] 第6页第8条数据已存在!
+2025-01-13 22:39:49,555 - INFO - [Increment Mode] 第6页第9条数据已存在!
+2025-01-13 22:39:49,557 - INFO - [Increment Mode] 第6页第10条数据已存在!
+2025-01-13 22:39:51,771 - INFO - [Increment Mode] 开始采集第 7 页数据...

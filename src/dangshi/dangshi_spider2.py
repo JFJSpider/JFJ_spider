@@ -221,7 +221,7 @@ def crawl_data(mode: int):
                     publication_year = match.group(1)
                     
                     # 将年份转换为完整的日期格式 (YYYY-MM-DD)
-                    publication_date = f"{publication_year}-01-01"  # 默认设置为 1 月 1 日
+                    publication_date = f"{publication_year}-01-01" 
                 else:
                     publication_date = ""  # 如果未找到匹配的年份，设置为空字符串
 

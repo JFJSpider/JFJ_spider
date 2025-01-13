@@ -6,6 +6,7 @@ LastEditTime: 2025-01-03 21:11:15
 FilePath: \jfj_spider\kongfuzi\kongfuzi_spider.py
 Description: 孔夫子旧书网
 '''
+import psycopg2
 
 """"
 三种模式
@@ -399,7 +400,7 @@ def connect_mysql(db_config,adapter):
     """
     try:
         # 尝试连接到指定数据库
-        connection = pymysql.connect(**db_config)
+        connection = psycopg2.connect(**db_config)
         adapter.info(f"Connected to database: {db_config['database']}")
         return connection
     except pymysql.err.OperationalError as e:
@@ -469,16 +470,22 @@ def get_data(page, url, cookies,adapter):
             delay = exponential_backoff(retry_count)
             adapter.info(f"重试第 {retry_count} 次，等待 {delay:.2f} 秒后重试...")
             time.sleep(delay)
+connection = psycopg2.connect(
+            host="10.101.221.240",  # 数据库主机地址
+            port="54321",
+            user="reslib",  # 用户名
+            password="1qaz3edc123!@#",  # 密码
+            dbname="reslib"  # 数据库名称
+        )
 def get_mysql_config():
         # 连接到 MySQL 数据库
     # MySQL 数据库连接信息
     db_config = {
-        'host': '127.0.0.1',       # 数据库地址
-        'port': 3306,              # 数据库端口
-        'user': 'root',            # 用户名
-        'password': '12345678',    # 密码
-        'database': 'book',     # 数据库名称
-        'charset': 'utf8mb4'       # 编码
+        'host': '10.101.221.240',       # 数据库地址
+        'port': "54321",              # 数据库端口
+        'user': 'reslib',            # 用户名
+        'password': '1qaz3edc123!@#',    # 密码
+        'database': 'reslib',     # 数据库名称
     }
     # 创建表信息 SQL
     create_table_sql = f"""
@@ -512,7 +519,7 @@ def get_mysql_config():
     """
     #插入格式
     insert_sql = """
-        INSERT INTO kongfuzi (str_id, data_type, data_status, book_type, subcategory, page_url, title, author, paper, publish, 
+        INSERT INTO rs_correct_resources (str_id, data_type, data_status, book_type, subcategory, page_url, title, author, paper, publish, 
                             publish_time, pages, words, edition, series_titles, ISBN, price, format, binding, People_buy, 
                             content_intro, sellers_number, image_url, base64_url)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -548,7 +555,6 @@ def main(child_urls,adapter):
     db_config, create_table_sql, insert_sql = get_mysql_config()
     with connect_mysql(db_config,adapter) as connection:
         with connection.cursor() as cursor:
-            cursor.execute(create_table_sql)
             for url in child_urls:
                 result = get_data(page,url,cookies=cookies,adapter=adapter)
                 if result:

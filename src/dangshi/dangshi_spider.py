@@ -133,10 +133,14 @@ def crawl_data(mode: int):
             new_tab.wait.doc_loaded()
             
             
-         
-            image_element = new_tab.ele("x://div[@class='left fl']//img",timeout=20)
-
-            #image_element = new_tab.ele("x://div[@class='p1_left fl']//img",timeout=20)
+            try:
+                image_element = new_tab.ele("x://div[@class='left fl']//img",timeout=20)
+            except Exception as e:
+                try:
+                    image_element = new_tab.ele("x://div[@class='p1_left fl']//img",timeout=20)
+                except Exception as e:
+                    adapter.debug(f"第{page_num}页第{i}条数据图片模板不正确，无图片信息!")
+                    pass
 
             
                  
@@ -203,7 +207,7 @@ def crawl_data(mode: int):
                     publication_year = match.group(1)
                     
                     # 将年份转换为完整的日期格式 (YYYY-MM-DD)
-                    publication_date = f"{publication_year}-01-01"  # 默认设置为 1 月 1 日
+                    publication_date = f"{publication_year}-01-01"  
                 else:
                     publication_date = ""  # 如果未找到匹配的年份，设置为空字符串
 

@@ -8,3 +8,6 @@ src/rmwjssp/rmwjssp.log
 data/
 src/data_dangdang/
 src/main/data_dangdang/
+src/dangdang/data_dangdang/
+*.log
+*.mp4

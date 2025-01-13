@@ -374,11 +374,11 @@ def select_data_from_database(dataid, adapter):
     try:
         # 连接数据库
         connection = psycopg2.connect(
-            host="localhost",  # 仅填写主机名
-            port=5432,  # 指定端口
-            user="postgres",
-            password="root",
-            database="postgres",
+            host="10.101.221.240",  # 数据库主机地址
+            port="54321",
+            user="reslib",  # 用户名
+            password="1qaz3edc123!@#",  # 密码
+            dbname="reslib"  # 数据库名称
         )
         if connection:
             print("成功连接到数据库")
@@ -404,11 +404,11 @@ def update_data_to_database(id, price, evaluation_number, adapter):
     try:
         # 连接到MySQL数据库
         connection = psycopg2.connect(
-            host="localhost",  # 仅填写主机名
-            port=5432,  # 指定端口
-            user="postgres",
-            password="root",
-            database="postgres",
+            host="10.101.221.240",  # 数据库主机地址
+            port="54321",
+            user="reslib",  # 用户名
+            password="1qaz3edc123!@#",  # 密码
+            dbname="reslib"  # 数据库名称
         )
         if connection:
             # print("成功连接到数据库")
@@ -447,11 +447,11 @@ def save_data_to_database(result_data, adapter):
     try:
         # 连接到MySQL数据库
         connection = psycopg2.connect(
-            host="localhost",  # 仅填写主机名
-            port=5432,  # 指定端口
-            user="postgres",
-            password="root",
-            database="postgres",
+            host="10.101.221.240",  # 数据库主机地址
+            port="54321",
+            user="reslib",  # 用户名
+            password="1qaz3edc123!@#",  # 密码
+            dbname="reslib"  # 数据库名称
         )
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data_dict = {
