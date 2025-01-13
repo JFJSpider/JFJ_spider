@@ -17,6 +17,7 @@ import logging
 import random
 import argparse
 import re
+import psycopg2
 # from mysql.connector import Error 
 
 
@@ -88,7 +89,7 @@ def crawl_data(mode: int):
     tab = browser.latest_tab
     # result_data = []
     adapter.info("START CRAWLING DATA FROM DANGSHI!")
-    for page_num in range(1, 16):
+    for page_num in range(1, 101):
         BASE_URL = "http://dangshi.people.com.cn/GB/146570/index{page_num}.html"
         url = BASE_URL.format(page_num=page_num)
         tab.get(url)
@@ -113,14 +114,6 @@ def crawl_data(mode: int):
             except Exception as e:
                 print(f"无法获取标题或链接: {e}")
                 continue
-            try:
-                response = requests.head(detail_url, timeout=10)  # 发送HEAD请求检查状态码
-                if response.status_code in [404, 403]:
-                    print(f"详情页链接无效，状态码: {response.status_code}. 跳过采集!")
-                    continue  # 跳过无效的链接
-            except requests.RequestException as e:
-                print(f"检查详情页链接时出错: {e}. 跳过采集!")
-                continue
             print(id)
             # 判断数据是否存在于数据库中
             if select_data_from_database(f'dangshi_{id}', adapter):
@@ -141,68 +134,58 @@ def crawl_data(mode: int):
             new_tab.wait.doc_loaded()
             
             
-            try:
-                image_element = new_tab.ele("x://div[@class='t16']//img", timeout=20)
+         
+            #image_element = new_tab.ele("x://div[@class='left fl']//img",timeout=20)
 
-                #image_element = new_tab.ele("x://div[@class='p1_left fl']//img",timeout=20)
+            image_element = new_tab.ele("x://div[@class='p1_left fl']//img",timeout=20)
 
-                
-                    
-                image_src = image_element.attr('src')
-                # 获取图片链接,并将其转为base64码
-                img_base64 = img_to_base64(image_src,id)
-            except Exception as e:
-                image_src=""
-                img_base64=""
+            
+                 
+            image_src = image_element.attr('src')
+            # 获取图片链接,并将其转为base64码
+            img_base64 = img_to_base64(image_src,id)
 
             
 
+            
+
+            # 获取书的简介
             try:
-                # 获取书的简介
-                intro_element = new_tab.ele("x://table[@class='t08']//tr[2]//td")  # 定位到包含简介的 <td>
-                content_intro = intro_element.text  # 获取简介文本
+                content_intro = new_tab.ele("x://div[@class='jianjie']").text
                 # 去除多余的空格和换行符
-                content_intro = content_intro.strip().replace("\u00a0", "").replace("\n", "").replace("\r", "")
-                print(f"书的简介: {content_intro}")
+                content_intro = content_intro.strip().replace("\u00a0", "")
             except Exception as e:
                 content_intro = ""
-                print(f"无法获取书的简介: {e}")
 
-
-           # 获取作者名字
+            # 获取作者名字
             try:
-                # 假设作者名字和简介在同一个 <td> 中
-                author_info_element = new_tab.ele("x://td[@class='t10']")  # 定位到包含作者信息的 <td>
-                author_info = author_info_element.text.strip()  # 提取并清理文本内容
-                
-                # 分割出作者名字和简介
-                author_parts = author_info.split("，", 1)  # 按第一个逗号分割
-                author = author_parts[0].strip()  # 提取作者名字
-                author_intro = author_parts[1].strip() if len(author_parts) > 1 else ""  # 提取简介部分
-                print(f"作者: {author}")
-                print(f"作者简介: {author_intro}")
+                # 提取作者信息，假设作者信息在 class 为 'center fl' 下的 p 标签内
+                author = new_tab.ele("x://div[@class='center fl']//p").text
+                # 去除多余的空格和换行，只保留实际的作者名字
+                author = author.strip().replace("\u00a0", "").split("　")[0]  # 提取名字部分
             except Exception as e:
                 author = ""
-                author_intro = ""
-                print(f"无法获取作者信息: {e}")
-
             # 获取出版社名称
             try:
-                # 定位包含出版社信息的 <td> 标签
-                publisher_element = new_tab.ele("x://td[@class='t12']")  # 定位到包含出版社信息的元素
-                publisher_info = publisher_element.text.strip()  # 提取并清理文本内容
-
-                # 提取出版社名称，去除多余的前缀
-                if "出版社：" in publisher_info:
-                    publisher = publisher_info.split("出版社：")[-1].strip()  # 提取“出版社：”后的内容
+                # 提取包含出版社信息的文本
+                publisher_info = new_tab.ele("x://div[@class='center fl']//p").text
+    
+                # 去除多余的空格和换行符
+                publisher_info = publisher_info.strip().replace("\u00a0", "").replace("\n", "")
+    
+                # 通过分割符提取作者和出版社
+                parts = publisher_info.split("　")  # 按分隔符 "　" 切分内容
+    
+                # 通常出版社会在第二段
+                if len(parts) > 2:
+                    publisher = parts[1].strip()  # 第二段为出版社信息
                 else:
-                    publisher = publisher_info.strip()  # 如果没有明确前缀，直接取内容
-
-                print(f"出版社: {publisher}")
+                    publisher = ""
+    
             except Exception as e:
-                publisher = ""
-                print(f"无法获取出版社名称: {e}")
+                publisher = ""  # 遇到异常返回空字符串
 
+            print(f"出版社: {publisher}")
 
 
 
@@ -211,119 +194,105 @@ def crawl_data(mode: int):
             try:
                 # 提取包含出版年份的文本
                 publication_info = new_tab.ele("x://div[@class='center fl']//p").text
-                
-                # 使用正则表达式提取年份
+                # 通过正则表达式提取年份信息
                 import re
                 match = re.search(r"(\d{4})年出版", publication_info)  # 匹配四位数字和"年出版"
-                
+    
                 if match:
-                    # 提取年份
+                    # 提取年份并格式化
                     publication_year = match.group(1)
-                    
-                    # 将年份转换为完整的日期格式 (YYYY-MM-DD)
-                    publication_date = f"{publication_year}-01-01"  # 默认设置为 1 月 1 日
+                    # 将年份转换为完整日期格式 (yyyy-01-01 00:00:00)
+                    publication_year = f'{publication_year}-01-01 00:00:00'
                 else:
-                    publication_date = ""  # 如果未找到匹配的年份，设置为空字符串
+                    publication_year = ""  # 如果没有找到匹配的年份
 
             except Exception as e:
-                publication_date = ""  # 出现异常时返回空字符串
+                publication_year = ""  # 出现异常时返回空字符串
 
-            print(f"出版日期: {publication_date}")
-
-
+            print(f"出版年份: {publication_year}")
 
 
+            # 获取作者简介
+            try:
+                # 定位到包含作者简介的元素
+                author_intro = new_tab.ele("x://div[@class='right fr']//p").text
+            except Exception as e:
+                author_intro = ""
+
+            # 获取分类信息
             try:
                 # 提取包含分类的文本
-                category_info = new_tab.ele("x://td[@class='t01']").text  # 修正 XPath 定位分类信息
+                category_info = new_tab.ele("x://div[@class='x_nav clearfix']").text
                 # 去除多余的空格和换行
                 category_info = category_info.strip().replace("\u00a0", "").replace("\n", "")
-                # 按照 '>>' 分割，获取分类层级
+                # 按照 '>>' 分割，获取倒数第二个部分
                 category_parts = category_info.split(" >> ")
-                if len(category_parts) > 1:
-                    # 保留倒数第二部分和最后一部分
-                    subcategory = f"{category_parts[-2]} >> {category_parts[-1]}"
+                if len(category_parts) > 2:
+                    # 保留倒数第二部分和后面的 '>>'，并拼接
+                    subcategory = " >> ".join(category_parts[:-1]) + " >> " + category_parts[-1]
                 else:
-                    subcategory = category_info  # 如果分类层级不足两级，则直接保留全部信息
+                    subcategory = category_info  # 如果没有足够多的部分，则保留全部分类信息
             except Exception as e:
                 subcategory = ""
-
 
 
             
             try:
                 # 获取精彩篇章的内容
-                content_sections = new_tab.eles("x://table[@width='96%']")  # 定位每个章节的 table 块
+                content_section = new_tab.ele("x://div[@class='p1_content']")
 
+                # 提取每篇内容
+                title1s = content_section.eles("x://b//font")
+                contents = content_section.eles("x://div[@style='font-size: 12px;']")
+                links = content_section.eles("x://p[@class='tr']//a")
                 # 拼接结果
                 final_content = ""
-                for section in content_sections:
-                    # 提取标题
-                    title_elem = section.ele("x://tr//td[@class='t03']/a")
-                    title1 = title_elem.text
-                    link = title_elem.attr("href")
-
-                    # 提取内容
-                    content_elem = section.ele("x://tr//td[@class='t04']")
-                    content = content_elem.text.strip()
-
-                    # 组合内容
+                for i in range(len(title1s)):
+                    title1 = title1s[i].text
+                    content = contents[i].text.strip()
+                    link = links[i].attr("href")
                     final_content += f"标题: {title1}\n内容: {content}\n阅读链接: {link}\n------\n"
-
             except Exception as e:
-                final_content = ""
+                final_content=""
 
 
-
+            # 获取目录部分的 URL
             try:
-                # 定位包含“目录”文本的 <a> 元素
-                directory_link = new_tab.ele("x://a[contains(text(), '目录')]")  # 使用 XPath 定位
-                print(directory_link)
+                # 寻找包含"目录"链接的<a>元素
+                directory_link = new_tab.ele("x://div[@class='t03_2']//a[contains(text(), '目录')]")
                 if directory_link:
                     # 获取目录页面的 URL
                     directory_url = directory_link.attr('href')
-                    print(f"目录页面 URL: {directory_url}")
-
+        
                     # 进入目录页面
                     new_tab.get(directory_url)
-
+        
                     # 提取目录内容
                     try:
-                        # 定位目录页面的主要内容区域
-                        content_section = new_tab.ele("x://div[contains(@class, 't2_content')]//div[contains(@class, 'text_show')]")
-                        if content_section:
-                            # 获取章节文本并按行分割，去除空行
-                            chapters = content_section.text.strip().split('\n')
-                            # 整理为完整的目录内容
-                            catalogue = "\n".join([chapter.strip() for chapter in chapters if chapter.strip()])
-                            print(f"目录内容:\n{catalogue}")
-                        else:
-                            print("目录内容区域未找到")
-                            catalogue = ""
+                        # 获取目录页面中的章节内容
+                        content_section = new_tab.ele("x://div[@class='t2_content t2_text']//div[@class='text_show']")
+                        chapters = content_section.text.strip().split('\n')  # 按行拆分章节内容
+                        # 输出章节内容
+                        catalogue = "\n".join([chapter.strip() for chapter in chapters if chapter.strip()])
                     except Exception as e:
-                        print(f"提取目录内容失败: {e}")
                         catalogue = ""
                 else:
-                    print("未找到目录链接")
-                    catalogue = ""
+                    catalogue = ""  # 如果没有找到"目录"链接
             except Exception as e:
-                print(f"获取目录 URL 时发生错误: {e}")
                 catalogue = ""
-
-
-            
 
 
 
             # print(f"ISBN: {ISBN}, format: {formats}, paper: {paper}, package: {package}, category: {category}")
             
             data = {
+                "id":id,
                 "str_id": f'dangshi_{id}',  # 数据的唯一标识
                 "title": title,  # 书名
                 "author": author,  # 作者
                 "author_intro": author_intro,  # 作者简介
                 "publisher": publisher,  # 出版社
-                "publish_time": publication_date,  # 出版年份
+                "publish_time": publication_year,  # 出版年份
                 "content_intro": content_intro,  # 图书简介
                 "content_section": final_content,  # 精彩篇章内容（含标题、内容和链接）
                 "image_url": image_src,  # 图片链接
@@ -346,82 +315,89 @@ def crawl_data(mode: int):
         # save_data_to_database(result_data)
 def select_data_from_database(dataid, adapter):
     try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
-            host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
-            password="geek742028",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
+        # 建立数据库连接
+        connection = psycopg2.connect(
+            host="localhost",  # 主机名
+            port=5432,  # PostgreSQL 默认端口
+            user="postgres",  # 数据库用户名
+            password="geek742028",  # 数据库密码
+            dbname="postgres",  # 数据库名称
+            options="-c client_encoding=UTF8"  # 确保使用 UTF-8 编码
         )
-        if connection.open:
-            print("成功连接到数据库")
-            print(f"dataid: {dataid}")
-            dataid = str(dataid)
-            # 查询数据
-            cursor = connection.cursor()
-            select_query = f"SELECT * FROM rs_correct_resources WHERE str_id='{dataid}'"
-            cursor.execute(select_query)
+        print("成功连接到数据库")
+        print(f"dataid: {dataid}")
+
+        # 查询数据
+        with connection.cursor() as cursor:
+            select_query = "SELECT * FROM rs_correct_resources WHERE str_id = %s"
+            cursor.execute(select_query, (dataid,))
             result = cursor.fetchone()
+
             if result:
-                
-                connection.close()
+                print("数据已存在，返回结果")
                 return result
             else:
                 print("数据不存在，开始采集")
-            
-    except Exception as e:
-        print("数据库连接失败:", e)
+                # 可以在这里调用采集函数
+                return None
+
+    except psycopg2.Error as e:
+        print("数据库操作失败:", e)
+        return None
+
     finally:
-        if connection.open:
-            cursor.close()
+        # 关闭连接前检查状态
+        if 'connection' in locals() and connection.closed == 0:
             connection.close()
-            # print("数据库连接已关闭")
+            print("数据库连接已关闭")
 # 全量采集时如果数据存在则对其进行更新, 目前只用更新价格和评论数
+
+def get_connection():
+    """统一管理数据库连接"""
+    return psycopg2.connect(
+        host="localhost",  # 主机名
+        port=5432,         # PostgreSQL 默认端口
+        user="postgres",   # 数据库用户名
+        password="geek742028",  # 数据库密码
+        dbname="postgres",  # 数据库名称
+        options="-c client_encoding=UTF8"  # 确保使用 UTF-8 编码
+    )
+
 def update_data_to_database(id, price, evaluation_number, adapter):
+    """更新数据到数据库"""
     try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
-            host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
-            password="geek742028",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
-        )
-        if connection.open:
-            # print("成功连接到数据库")
-            # 查询所有需要更新的数据
-            cursor = connection.cursor()
+        connection = get_connection()
+        with connection.cursor() as cursor:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             if evaluation_number is None:
-                update_query = f"UPDATE rs_correct_resources SET price={price}, update_time='{current_time}' WHERE str_id='{id}'"
+                update_query = """
+                    UPDATE rs_correct_resources
+                    SET price = %s, update_time = %s
+                    WHERE str_id = %s
+                """
+                cursor.execute(update_query, (price, current_time, id))
             else:
-                update_query = f"UPDATE rs_correct_resources SET price={price}, evaluation_number={evaluation_number}, update_time='{current_time}' WHERE str_id='{id}'"
-            cursor.execute(update_query)
+                update_query = """
+                    UPDATE rs_correct_resources
+                    SET price = %s, evaluation_number = %s, update_time = %s
+                    WHERE str_id = %s
+                """
+                cursor.execute(update_query, (price, evaluation_number, current_time, id))
             connection.commit()
             adapter.info("数据已更新到数据库")
     except Exception as e:
-        adapter.error(e)
+        adapter.error(f"更新数据失败: {e}")
     finally:
-        if connection.open:
-            cursor.close()
+        if connection and connection.closed == 0:
             connection.close()
+
 def save_data_to_database(result_data, adapter):
+    """保存数据到数据库"""
     try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
-            host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
-            password="geek742028",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
-        )
+        connection = get_connection()
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data_dict = {
-            
+            "id":result_data[0]["id"],
             "str_id": result_data[0]["str_id"],
             "title": result_data[0]["title"],
             "author": result_data[0]["author"],
@@ -438,45 +414,24 @@ def save_data_to_database(result_data, adapter):
             "update_time": current_time,
             "deleted": 0,
             "book_type": result_data[0]["book_type"],
-            "content_section":result_data[0]["content_section"],
-            "subcategory":result_data[0]["subcategory"],
-            "catalogue":result_data[0]["catalogue"]
+            "content_section": result_data[0]["content_section"],
+            "subcategory": result_data[0]["subcategory"],
+            "catalogue": result_data[0]["catalogue"]
         }
-        if connection.open:
-            cursor = connection.cursor()
-            str_sql_head = 'INSERT INTO rs_correct_resources'
-            str_sql_middle = ""
-            str_sql_value = ""
-            value_list = []
-            for key,value in data_dict.items():
-                if value:
-                    str_sql_middle = str_sql_middle + key + ","
-                    str_sql_value += "%s,"
-                    value_list.append(value)
-            #去除末尾,
-            str_sql_middle = str_sql_middle.rstrip(",")
-            str_sql_value = str_sql_value.rstrip(",")
-
-            str_sql_middle = f"({str_sql_middle})"
-            str_sql_value = f"VALUES ({str_sql_value})"
-
-            all_sql_str = f"{str_sql_head} {str_sql_middle} {str_sql_value}"
-            # adapter.info(f'sql语句:{all_sql_str}')
-            cursor.execute(all_sql_str,value_list)
+        with connection.cursor() as cursor:
+            columns = ', '.join(data_dict.keys())
+            placeholders = ', '.join(['%s'] * len(data_dict))
+            sql_query = f"INSERT INTO rs_correct_resources ({columns}) VALUES ({placeholders})"
+            cursor.execute(sql_query, list(data_dict.values()))
             connection.commit()
-            adapter.info(f"数据已成功插入到表中")
-
+            adapter.info("数据已成功插入到表中")
     except Exception as e:
-       # print("错误:", e)
-        adapter.error(e)
-
+        adapter.error(f"插入数据失败: {e}")
     finally:
-    # 确保 cursor 和 connection 都被正确关闭
-        if cursor:
-            cursor.close()  # 只有在 cursor 已经成功创建后才会关闭
-        if connection.open:
-            connection.close()  # 关闭数据库连接
-        print("数据库连接已关闭")
+        if connection and connection.closed == 0:
+            connection.close()
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="党史网数据采集")

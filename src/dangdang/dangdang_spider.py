@@ -39,6 +39,7 @@ logging.basicConfig(
 )
 # 创建 logger 对象
 logger = logging.getLogger(__name__)
+
 # 检测是否登录, 如果没有则提示用户请登录(这里登录需要用户手动辅助)
 def check_login(tab, adapter):
     if len(tab.eles("x://span[@id='nickname']//a[@dd_name='登录']", timeout = 1)) != 0: #需要登录
@@ -52,6 +53,8 @@ def check_login(tab, adapter):
             adapter.warning("需要人工辅助登录!")
     else:
         adapter.info("检测到已登录, 开始采集数据")
+
+
 def extract_price(price_string):
     # 正则表达式：匹配以"¥"开头的价格，捕获价格数字（包括小数）
     match = re.search(r'(\d+(\.\d+)?)', price_string)
@@ -281,6 +284,7 @@ def select_data_from_database_by_id(dataid, adapter):
         adapter.info(f"数据查询已存在!")
 # 全量采集时如果数据存在则对其进行更新, 目前只用更新价格和评论数
 def update_data_to_database(id, price, evaluation_number, adapter):
+<<<<<<< HEAD
     db_manager = DatabaseManager()
     db_manager.connect()
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -292,6 +296,37 @@ def update_data_to_database(id, price, evaluation_number, adapter):
     db_manager.update('rs_correct_resources', columns, values, 'str_id', id)
     adapter.info(f"数据[{id}]已存在, 已对其进行更新!")
     
+=======
+    try:
+        # 连接到MySQL数据库
+        connection = pymysql.connect(
+            host="localhost",  # 仅填写主机名
+            port=3306,  # 指定端口
+            user="root",
+            password="123456",
+            database="reslib",
+            charset="utf8mb4"  # 设置字符集为utf8mb4
+        )
+        if connection.open:
+            # print("成功连接到数据库")
+            # 查询所有需要更新的数据
+            cursor = connection.cursor()
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if evaluation_number is None:
+                update_query = f"UPDATE rs_correct_resources SET price={price}, update_time='{current_time}' WHERE str_id='{id}'"
+            else:
+                update_query = f"UPDATE rs_correct_resources SET price={price}, evaluation_number={evaluation_number}, update_time='{current_time}' WHERE str_id='{id}'"
+            cursor.execute(update_query)
+            connection.commit()
+            adapter.info("数据已更新到数据库")
+    except Exception as e:
+        adapter.error(e)
+    finally:
+        if connection.open:
+            cursor.close()
+            connection.close()
+            
+>>>>>>> zhiwei
 def save_data_to_database(result_data, adapter):
     db_manager = DatabaseManager()
     db_manager.connect()

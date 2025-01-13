@@ -7,7 +7,7 @@ FilePath: \jfj_spider\dangdang_spider.py
 Description: 当当采集
 '''
 from DrissionPage import Chromium, ChromiumOptions
-import pymysql
+import psycopg2
 from datetime import datetime
 import requests
 import base64
@@ -18,7 +18,7 @@ import argparse
 import re
 
 # from mysql.connector import Error
-BASE_URL = "https://search.jd.com/search?keyword=%E5%86%9B%E4%BA%8B"
+BASE_URL = "https://search.jd.com/Search?keyword=%E5%86%9B%E4%BA%8B%20DVD&enc=utf-8&pvid=5e90865340bb4d1f8a3e4993c738c4d7"
 
 
 class ModeLoggerAdapter(logging.LoggerAdapter):
@@ -36,7 +36,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("jingdong_data_collection.log", mode='a', encoding='utf-8'),
+        logging.FileHandler("jingdong_dvd_data_collection.log", mode='a', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -94,13 +94,13 @@ def crawl_data(mode: int):
         adapter = ModeLoggerAdapter(logger, extra={'mode': '[Full Mode]'})
     # mode为爬取模式, 1为全量爬取, 0为增量爬取
     co = ChromiumOptions()
-    co.set_user_data_path('./data_jingdong')
+    co.set_user_data_path('./data_jingdong_dvd')
     browser = Chromium(co)
     tab = browser.latest_tab
     # result_data = []
     adapter.info("START CRAWLING DATA FROM JINGDONG!")
-    for page_num in range(1, 200):
-        url = f"{BASE_URL}&pvid=ecbf645199c843528da9d81e99a5e119&cid2=3276&isList=0&page={page_num}"
+    for page_num in range(1, 8):
+        url = f"{BASE_URL}&isList=0&page={page_num}"
         tab.get(url)
         tab.wait.doc_loaded()
         check_login(tab, adapter)
@@ -201,13 +201,15 @@ def crawl_data(mode: int):
             except Exception as e:
                 price = None
 
+
+
             describe = new_tab.eles("x://div[@class='p-parameter']//ul[@class='parameter2 p-parameter-list']//li")
             ISBN = ""
             publisher = ""
             edition = ""
             brand = ""
             packages = ""
-            series_titles = ""
+            series_title = ""
             format = ""
             use_paper = ""
             product_code = ""
@@ -216,6 +218,23 @@ def crawl_data(mode: int):
             words = ""
             publish_time = ""
             number_sets = ""
+            book_medium = ""
+            discs_number = ""
+            film_len = ""
+            subtitles = ""
+            dubbing_language = ""
+            screen_ratio = ""
+            item_number = ""
+            memory_capacity = ""
+            category = ""
+            connection_method = ""
+            distribution_company = ""
+            distribution_scope = ""
+            # 品牌特殊处理
+            try:
+                brand = new_tab.ele("x://div[@class='p-parameter']//ul[@id='parameter-brand']//li//a").text
+            except Exception as e:
+                brand = None
             for li in describe:
                 if '出版社' in li.text:
                     publisher = li.text.split('：')[-1]
@@ -223,14 +242,14 @@ def crawl_data(mode: int):
                     edition = li.text.split('：')[-1]
                 if 'ISBN' in li.text:
                     ISBN = li.text.split('：')[-1]
-                if '商品编码' in li.text:
+                if '商品编号' in li.text:
                     product_code = li.text.split('：')[-1]
                 if '品牌' in li.text:
                     brand = li.text.split('：')[-1]
                 if '包装' in li.text:
                     packages = li.text.split('：')[-1]
                 if '丛书名' in li.text:
-                    series_titles = li.text.split('：')[-1]
+                    series_title = li.text.split('：')[-1]
                 if '开本' in li.text:
                     format = li.text.split('：')[-1]
                 if '出版时间' in li.text:
@@ -246,8 +265,30 @@ def crawl_data(mode: int):
                     words = li.text.split('：')[-1]
                     if words == 'null':
                         words = ""
-                if '正文语种' in li.text:
-                    language = li.text.split('：')[-1]
+                if '介质' in li.text:
+                    book_medium = li.text.split('：')[-1]
+                if '碟数' in li.text:
+                    discs_number = li.text.split('：')[-1]
+                if '片长' in li.text:
+                    film_len = li.text.split('：')[-1]
+                if '字幕语言' in li.text:
+                    subtitles = li.text.split('：')[-1]
+                if '配音语言' in li.text:
+                    dubbing_language = li.text.split('：')[-1]
+                if '屏幕比例' in li.text:
+                    screen_ratio = li.text.split('：')[-1]
+                if '货号' in li.text:
+                    item_number = li.text.split('：')[-1]
+                if '内存容量' in li.text:
+                    memory_capacity = li.text.split('：')[-1]
+                if '类别' in li.text:
+                    category = li.text.split('：')[-1]
+                if '连接方式' in li.text:
+                    connection_method = li.text.split('：')[-1]
+                if '发行公司' in li.text:
+                    distribution_company = li.text.split('：')[-1]
+                if '地区' in li.text:
+                    distribution_scope = li.text.split('：')[-1]
 
             try:
                 # 尝试定位 '内容简介' 元素
@@ -338,10 +379,10 @@ def crawl_data(mode: int):
                 "preface": preface,
                 "content_intro": content_intro,
                 "ISBN": ISBN,
-                "price": float(price) if price is not None else None,
+                "price": float(price),
                 "evaluation_number": int(comment_num) if comment_num is not None else None,
                 "packages": packages,
-                "series_titles": series_titles,
+                "series_title": series_title,
                 "format": format,
                 "use_paper": use_paper,
                 "edition": edition,
@@ -352,12 +393,24 @@ def crawl_data(mode: int):
                 "words": words,
                 "number_sets": number_sets,
                 "editor_recommendations": editor_recommendations,
+                "book_medium": book_medium,
+                "discs_number": discs_number,
+                "film_len": film_len,
+                "subtitles": subtitles,
+                "dubbing_language": dubbing_language,
+                "screen_ratio": screen_ratio,
+                "item_number": item_number,
+                "memory_capacity": memory_capacity,
+                "category": category,
+                "connection_method": connection_method,
+                "distribution_company": distribution_company,
+                "distribution_scope":distribution_scope,
                 "image_url": image_src,
                 "image_base64": img_base64,
                 "page_url": detail_url,
                 "data_type": "京东",
                 "data_status": "1",
-                "book_type": "1"
+                "book_type": "3"
             }
             result_data.append(data)
             browser.close_tabs(new_tab)
@@ -372,76 +425,85 @@ def crawl_data(mode: int):
 
 def select_data_from_database(dataid, adapter):
     try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
+        # 连接数据库
+        connection = psycopg2.connect(
             host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
+            port=5432,  # 指定端口
+            user="postgres",
             password="root",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
+            database="postgres",
         )
-        if connection.open:
+        if connection:
             print("成功连接到数据库")
             # 查询数据
             cursor = connection.cursor()
-            select_query = f"SELECT * FROM rs_correct_resources WHERE str_id='{dataid}'"
-            cursor.execute(select_query)
+            select_query = f"SELECT * FROM rs_correct_resources WHERE str_id = %s"
+            cursor.execute(select_query, (dataid,))
             result = cursor.fetchone()
             connection.close()
             return result
     except Exception as e:
         print("数据库连接失败:", e)
     finally:
-        if connection.open:
+        # 确保游标和连接被关闭
+        if 'cursor' in locals():
             cursor.close()
+        if 'connection' in locals() and connection:
             connection.close()
-            # print("数据库连接已关闭")
 
 
 # 全量采集时如果数据存在则对其进行更新, 目前只用更新价格和评论数
 def update_data_to_database(id, price, evaluation_number, adapter):
     try:
         # 连接到MySQL数据库
-        connection = pymysql.connect(
+        connection = psycopg2.connect(
             host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
+            port=5432,  # 指定端口
+            user="postgres",
             password="root",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
+            database="postgres",
         )
-        if connection.open:
+        if connection:
             # print("成功连接到数据库")
             # 查询所有需要更新的数据
             cursor = connection.cursor()
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             if evaluation_number is None:
-                update_query = f"UPDATE rs_correct_resources SET price={price}, update_time='{current_time}' WHERE str_id='{id}'"
+                update_query = """
+                           UPDATE rs_correct_resources 
+                           SET price = %s, update_time = %s 
+                           WHERE str_id = %s
+                       """
+                cursor.execute(update_query, (price, current_time, id))
             else:
-                update_query = f"UPDATE rs_correct_resources SET price={price}, evaluation_number={evaluation_number}, update_time='{current_time}' WHERE str_id='{id}'"
-            cursor.execute(update_query)
+                update_query = """
+                           UPDATE rs_correct_resources 
+                           SET price = %s, evaluation_number = %s, update_time = %s 
+                           WHERE str_id = %s
+                       """
+                cursor.execute(update_query, (price, evaluation_number, current_time, id))
             connection.commit()
             adapter.info("数据已更新到数据库")
     except Exception as e:
         adapter.error(e)
     finally:
-        if cursor is not None:  # 只有当 cursor 被创建时才调用 close
+        # 确保游标和连接被正确关闭
+        if 'cursor' in locals():
             cursor.close()
-        if connection.open:
-            connection.close()  # 关闭连接
+        if 'connection' in locals() and connection:
+            connection.close()
+            # print("数据库连接已关闭")
 
 
 def save_data_to_database(result_data, adapter):
     try:
-        # 连接到MySQL数据库
-        connection = pymysql.connect(
+        # 连接数据库
+        connection = psycopg2.connect(
             host="localhost",  # 仅填写主机名
-            port=3306,  # 指定端口
-            user="root",
+            port=5432,  # 指定端口
+            user="postgres",
             password="root",
-            database="reslib",
-            charset="utf8mb4"  # 设置字符集为utf8mb4
+            database="postgres",
         )
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data_dict = {
@@ -455,11 +517,11 @@ def save_data_to_database(result_data, adapter):
             "catalogue": result_data[0]["catalogue"],
             "preface": result_data[0]["preface"],
             "content_intro": result_data[0]["content_intro"],
-            "ISBN": result_data[0]["ISBN"],
+            "\"ISBN\"": result_data[0]["ISBN"],
             "price": result_data[0]["price"],
             "evaluation_number": result_data[0]["evaluation_number"],
             "packages": result_data[0]["packages"],
-            "series_titles": result_data[0]["series_titles"],
+            "series_title": result_data[0]["series_title"],
             "format": result_data[0]["format"],
             "use_paper": result_data[0]["use_paper"],
             "edition": result_data[0]["edition"],
@@ -470,6 +532,18 @@ def save_data_to_database(result_data, adapter):
             "words": result_data[0]["words"],
             "number_sets": result_data[0]["number_sets"],
             "editor_recommendations": result_data[0]["editor_recommendations"],
+            "book_medium": result_data[0]["book_medium"],
+            "discs_number": result_data[0]["discs_number"],
+            "film_len": result_data[0]["film_len"],
+            "subtitles": result_data[0]["subtitles"],
+            "dubbing_language": result_data[0]["dubbing_language"],
+            "screen_ratio": result_data[0]["screen_ratio"],
+            "item_number": result_data[0]["item_number"],
+            "memory_capacity": result_data[0]["memory_capacity"],
+            "category": result_data[0]["category"],
+            "connection_method": result_data[0]["connection_method"],
+            "distribution_company": result_data[0]["distribution_company"],
+            "distribution_scope": result_data[0]["distribution_scope"],
             "image_url": result_data[0]["image_url"],
             "base64_url": result_data[0]["image_base64"],
             "page_url": result_data[0]["page_url"],
@@ -480,7 +554,7 @@ def save_data_to_database(result_data, adapter):
             "deleted": 0,
             "book_type": result_data[0]["book_type"]
         }
-        if connection.open:
+        if connection:
             cursor = connection.cursor()
             str_sql_head = 'INSERT INTO rs_correct_resources'
             str_sql_middle = ""
@@ -509,8 +583,10 @@ def save_data_to_database(result_data, adapter):
         adapter.error(e)
 
     finally:
-        if connection.open:
+        # 确保游标和连接被正确关闭
+        if 'cursor' in locals():
             cursor.close()
+        if 'connection' in locals() and connection:
             connection.close()
             # print("数据库连接已关闭")
 
