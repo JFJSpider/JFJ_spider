@@ -234,7 +234,8 @@ def crawl_data(mode: int):
                 if '开本' in li.text:
                     format = li.text.split('：')[-1]
                 if '出版时间' in li.text:
-                    publish_time = li.text.split('：')[-1]
+                    publish_time_str = li.text.split('：')[-1]
+                    publish_time = datetime.strptime(publish_time_str, '%Y-%m-%d')
                 if '用纸' in li.text:
                     use_paper = li.text.split('：')[-1]
                 if '页数' in li.text:
