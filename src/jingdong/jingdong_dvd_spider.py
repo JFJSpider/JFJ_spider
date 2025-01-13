@@ -99,7 +99,7 @@ def crawl_data(mode: int):
     tab = browser.latest_tab
     # result_data = []
     adapter.info("START CRAWLING DATA FROM JINGDONG!")
-    for page_num in range(1, 200):
+    for page_num in range(1, 8):
         url = f"{BASE_URL}&isList=0&page={page_num}"
         tab.get(url)
         tab.wait.doc_loaded()
@@ -108,10 +108,10 @@ def crawl_data(mode: int):
         result_li = tab.eles("x://div[@id='J_searchWrap']//div[@id='J_goodsList']//ul//li")
         i = 0
         for li in result_li:
-            i += 1
             result_data = []
             id = li.attr("data-sku")  # id
             if select_data_from_database(f'jingdong_{id}', adapter):
+                i += 1
                 if mode == 1:  # 全量模式
                     adapter.info(f"第{page_num}页第{i}条数据开始更新!")
                     # 采集价格和评论数
@@ -230,9 +230,11 @@ def crawl_data(mode: int):
             connection_method = ""
             distribution_company = ""
             distribution_scope = ""
-
             # 品牌特殊处理
-            brand = new_tab.ele("x://div[@class='p-parameter']//ul[@id='parameter-brand']//li//a").text
+            try:
+                brand = new_tab.ele("x://div[@class='p-parameter']//ul[@id='parameter-brand']//li//a").text
+            except Exception as e:
+                brand = None
             for li in describe:
                 if '出版社' in li.text:
                     publisher = li.text.split('：')[-1]
