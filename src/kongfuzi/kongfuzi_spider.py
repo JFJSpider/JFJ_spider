@@ -1,11 +1,20 @@
 '''
-Author: wamgzwu
+Author:liuzhiwei
 Date: 2024-12-30 15:45:40
-LastEditors: wamgzwu wangzw26@outlook.com
+LastEditors: liuzhiwei zwliu27424@gmail.com
 LastEditTime: 2025-01-03 21:11:15
-FilePath: \jfj_spider\dangdang_spider.py
-Description: 当当采集
+FilePath: \jfj_spider\kongfuzi\kongfuzi_spider.py
+Description: 孔夫子旧书网
 '''
+
+""""
+三种模式
+第一种为全量爬取，如果原始数据库中没有该网站的任何数据，则爬取所有数据
+第二种为增量爬取，如果执行了第一次全量爬取，则可以开始进行增量爬取，获取更新数据
+第三种为更新数据库，将数据库中的网页数据进行更新
+
+"""
+
 import os
 import threading
 import queue
@@ -43,18 +52,6 @@ logging.basicConfig(
 # 创建 logger 对象
 logger = logging.getLogger(__name__)
 
-# 采集需要全量采集 增量采集
-# 全量采集重新爬取整个网站
-# 增量采集只爬取最新的数据
-# 首先第一步 获取当前的所有child_urls
-# 依次爬取
-# 后面根据是否新增数据来判断，新增数据
-
-# 第一个函数 获取child_urls
-# 第二个函数 采集数据
-# 第三个函数 更新数据,判断新增数据
-# 第四个函数 更新child_urls
-
 # 写入数据
 
 
@@ -67,23 +64,23 @@ def is_logged_in(tab):
     else:
         return False
 
-def check_login(tab, timeout=60):
+def check_login(tab, adapter,timeout=60,):
 
     if not is_logged_in(tab):
-        print("需要登录，正在等待用户操作...")
+        adapter.info("需要登录，正在等待用户操作...")
 
         start_time = time.time()
         while not is_logged_in(tab):
             time.sleep(0.5)  # 减少等待时间，提升响应速度
             if time.time() - start_time > timeout:
-                raise TimeoutError("登录超时，请重新尝试！")
+                adapter.info("登录超时，请重新尝试！")
         
-        print("登录成功！")
+        adapter.info("登录成功！")
     else:
-        print("检测到已登录, 开始采集数据")
+        adapter.info("检测到已登录, 开始采集数据")
 
 
-def img_to_base64(img_url):
+def img_to_base64(img_url, adapter):
     response = requests.get(img_url)
     time.sleep(1)
     # 确保请求成功
@@ -96,10 +93,11 @@ def img_to_base64(img_url):
         #     file.write(decoded_string)
         return img_base64
     else:
-        print('Failed to download the image')
+        adapter.info('Failed to download the image')
         return ""
+    
 
-def get_child_urls(base_url, page, output="./output/", mode=0):
+def get_child_urls(base_url, page, mode,adapter,output="./output/", ):
     # 检查输出目录
     if not os.path.exists(output):
         os.makedirs(output)
@@ -110,22 +108,22 @@ def get_child_urls(base_url, page, output="./output/", mode=0):
 
     if mode == 0:
         # 全量爬取
-        print("第一次全量爬取")
+        adapter.info("第一次全量爬取")
         child_urls = []
 
-        print("开始爬取所有页...")
-        last_page = 100  # 假设总页数为100，可动态获取
+        adapter.info("开始爬取所有页...")
+        current_page = 1  # 从第1页开始
         with open(all_file_path, "w") as out_file:
-            for current_page in tqdm(range(1, last_page + 1), desc="爬取字网页进度"):
-                print(f"正在爬取第 {current_page} 页的子网页...")
+            while True:
+                adapter.info(f"正在爬取第 {current_page} 页的子网页...")
                 url = base_url + str(current_page)
-                print(url)
+                adapter.info(url)
                 # 发送 POST 请求
                 page.get(url)
                 page_json = page.json
                 # 检查返回数据
                 if not page_json or "data" not in page_json or "itemResponse" not in page_json["data"] or not page_json["data"]["itemResponse"]["list"]:
-                    print(f"第 {current_page} 页无数据，爬取结束。")
+                    adapter.info(f"第 {current_page} 页无数据，爬取结束。")
                     break
                 # 提取 mids 并生成子网页链接
                 mids = [item['mid'] for item in page_json['data']['itemResponse']['list']]
@@ -133,26 +131,27 @@ def get_child_urls(base_url, page, output="./output/", mode=0):
                     child_url = f"https://item.kongfz.com/book/{mid}.html"
                     child_urls.append(child_url)
                     out_file.write(child_url + "\n")
+                current_page += 1  # 继续爬取下一页
 
         # 备份全量爬取结果为旧文件
-        #将all_file_path重命名为old_file_path
+        # 将all_file_path重命名为old_file_path
         if os.path.exists(all_file_path):
             os.rename(all_file_path, old_file_path)
 
-        print("爬取完成!")
-        print(f"共爬取 {len(child_urls)} 个子网页，结果保存在 {all_file_path}")
+        adapter.info("爬取完成!")
+        adapter.info(f"共爬取 {len(child_urls)} 个子网页，结果保存在 {all_file_path}")
 
     elif mode == 1:
         # 增量爬取
-        print("增量爬取模式")
+        adapter.info("增量爬取模式")
         # 读取上次的结果
         if not os.path.exists(old_file_path):
-            print("未找到旧文件，无法进行增量爬取，请先执行全量爬取！")
+            adapter.info("未找到旧文件，无法进行增量爬取，请先执行全量爬取！")
             return []
         # 读取旧数据
         with open(old_file_path, "r") as f:
             child_old_urls = set(line.strip() for line in f.readlines())
-        print(f"读取到 {len(child_old_urls)} 条旧数据")
+        adapter.info(f"读取到 {len(child_old_urls)} 条旧数据")
         child_urls = []
         current_page = 1
         success = True
@@ -160,9 +159,9 @@ def get_child_urls(base_url, page, output="./output/", mode=0):
         with open(new_file_path, "w") as out_file:
             while success:
                 try:
-                    print(f"正在爬取第 {current_page} 页的子网页...")
+                    adapter.info(f"正在更新第 {current_page} 页的子网页...")
                     url = base_url + str(current_page)
-                    print(url)
+                    adapter.info(url)
 
                     # 发送 POST 请求
                     page.get(url)
@@ -170,7 +169,7 @@ def get_child_urls(base_url, page, output="./output/", mode=0):
 
                     # 检查返回数据
                     if not page_json or "data" not in page_json or "itemResponse" not in page_json["data"] or not page_json["data"]["itemResponse"]["list"]:
-                        print(f"第 {current_page} 页无数据，爬取结束。")
+                        adapter.info(f"第 {current_page} 页无数据，爬取结束。")
                         success = False
                         break
 
@@ -185,7 +184,7 @@ def get_child_urls(base_url, page, output="./output/", mode=0):
                     current_page += 1
 
                 except Exception as e:
-                    print(f"爬取第 {current_page} 页时出现错误: {e}")
+                    adapter.info(f"爬取第 {current_page} 页时出现错误: {e}")
                     success = False
             
         # 将增量爬取结果写入新文件
@@ -194,37 +193,71 @@ def get_child_urls(base_url, page, output="./output/", mode=0):
             for url in all_urls:
                 all_file.write(url + "\n")
         if len(child_urls) == 0:    
-            print("增量爬取无数据，爬取结束。")
+            adapter.info("增量爬取无数据，爬取结束。")
             return []
-        print("增量爬取完成!")
-        print(f"新增 {len(child_urls)} 条子网页，结果保存在 {new_file_path}")
+        adapter.info("增量爬取完成!")
+        adapter.info(f"新增 {len(child_urls)} 条子网页，结果保存在 {new_file_path}")
 
     else:
         # 更新数据库
-        print("更新数据库模式")
+        adapter.info("更新数据库模式")
         with open(all_file_path, "r") as f:
             child_urls = [line.strip() for line in f.readlines()]
-
-
-
 
     return child_urls
 
 
 
-def get_elems_multithreaded(url, page):
+from datetime import datetime
+
+def standardize_date(date_str):
+    """
+    将输入的日期字符串转换为 YYYY-MM-DD 格式。
+    如果只给出年份，则默认为该年的1月1日。
+    如果给出年份和月份，则默认为该月的第一天。
+    
+    参数:
+    date_str (str): 原始日期字符串，可能的格式为 "YYYY" 或 "YYYY-MM"
+
+    返回:
+    str: 标准化的日期字符串 "YYYY-MM-DD"
+    """
+    try:
+        # 尝试按照年-月-日的格式解析日期
+        date = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        try:
+            # 尝试按照年-月的格式解析日期
+            date = datetime.strptime(date_str, "%Y-%m")
+        except ValueError:
+            try:
+                # 尝试按照年的格式解析日期
+                date = datetime.strptime(date_str, "%Y")
+            except ValueError:
+                # 如果都不匹配，返回错误信息
+                return "Invalid date format"
+        
+        # 如果只有年和月，设置日期为月的第一天
+        date = date.replace(day=1)
+    
+    # 返回格式化的日期字符串
+    return date.strftime("%Y-%m-%d")
+
+def get_elems_multithreaded(url, page,cookies):
     # 固定字段
     main_data = {}
     ID = url.split('/')[-1].replace(".html","")
-    main_data['str_id'] = ID
-    main_data['data_type'] = 'kongduzi'  # 数据类型
+    main_data['str_id'] = "kfz"+ID
+    main_data['data_type'] = 'kongfuzi'  # 数据类型
     main_data['data_status'] = 1        # 数据状态：已提交
     main_data['book_type'] = 1          # 书类型：图书
     main_data['subcategory'] = "图书>军事"  # 存入数据字典
     main_data['page_url'] = url
     # 尝试提取标题
-    title = page.ele('@@tag()=h1').text  # 定位页面中 <h1> 标签的文本内容
-
+    try:
+        title = page.ele('@@tag()=h1').text  # 定位页面中 <h1> 标签的文本内容
+    except:
+        title = ''  # 如果提取失败，设置为默认空字符串
     main_data['title'] = title  # 将标题赋值到数据字典中
 
     # 尝试提取作者信息
@@ -233,7 +266,6 @@ def get_elems_multithreaded(url, page):
     except:
         author = ''  # 提取失败则设置为空
     main_data['author'] = author  # 存入数据字典
-    print(author)
 
     ##纸张paper
     # 尝试提取纸张信息
@@ -253,6 +285,7 @@ def get_elems_multithreaded(url, page):
     # 尝试提取出版时间
     try:
         publish_time = page.ele('@@tag()=span@@text():出版时间').next().text  # 定位“出版时间”标签并提取下一个兄弟节点的文本
+        publish_time = standardize_date(publish_time)
     except:
         publish_time = ''  # 提取失败设置为空
     main_data['publish_time'] = publish_time  # 存入数据字典
@@ -260,6 +293,7 @@ def get_elems_multithreaded(url, page):
     #尝试提取页数
     try:
         pages = page.ele('@@tag()=span@@text():页数').next().text  # 定位“页数”标签并提取下一个兄弟节点的文本
+        pages = pages.replace('[^\\d]', '', regex=True)
     except:
         pages = ''  # 提取失败设置为空
     main_data['pages'] = pages  # 存入数据字典
@@ -267,6 +301,9 @@ def get_elems_multithreaded(url, page):
     #尝试提取字数
     try:    
         words = page.ele('@@tag()=span@@text():字数').next().text  # 定位“字数”标签并提取下一个兄弟节点的文本
+        words = words.replace('千字', '000', regex=True)
+        words = words.replace('[^\\d]', '', regex=True)
+
     except:
         words = ''  # 提取失败设置为空
     main_data['words'] = words  # 存入数据字典
@@ -274,6 +311,7 @@ def get_elems_multithreaded(url, page):
     # 尝试提取版次
     try:
         edition = page.ele('@@tag()=span@@text():版次').next().text  # 定位“版次”标签并提取下一个兄弟节点的文本
+        edition = edition.replace('[^\\d]', '', regex=True)
     except:
         edition = ''  # 提取失败设置为空
     main_data['edition'] = edition  # 存入数据字典
@@ -295,6 +333,7 @@ def get_elems_multithreaded(url, page):
     #尝试提取价格
     try:
         price = page.ele('@@tag()=span@@text():定价').next().text  # 定位“价格”标签并提取下一个兄弟节点的文本
+        price = price.replace('[^\\d.]', '', regex=True)
     except:
         price = ''  # 提取失败设置为空
     main_data['price'] = price  # 存入数据字典
@@ -316,6 +355,7 @@ def get_elems_multithreaded(url, page):
     # 尝试提取购买人数
     try:
         People_buy = page.ele('@@tag()=span@@text():买过').text  # 定位包含“人买过”的 <span> 标签，并获取其文本
+        People_buy = People_buy.replace('[^\\d]', '', regex=True)
     except:
         People_buy = ''  # 提取失败设置为空
     main_data['People_buy'] = People_buy  # 存入数据字典
@@ -330,6 +370,7 @@ def get_elems_multithreaded(url, page):
     #尝试提取在售商家数
     try:    
         sellers_number = page.ele('x:///html/body/div[1]/div[3]/div[2]/div[1]/ul/li[1]').text  # 定位“在售商家数”标签并提取下一个兄弟节点的文本
+        sellers_number = sellers_number.replace('[^\\d]', '', regex=True)
     except:
         sellers_number = ''  # 提取失败设置为空
     main_data['sellers_number'] = sellers_number  # 存入数据字典
@@ -352,19 +393,19 @@ def get_elems_multithreaded(url, page):
 
     return main_data
 
-def connect_mysql(db_config):
+def connect_mysql(db_config,adapter):
     """
     连接到 MySQL 数据库，如果指定的数据库不存在，则创建该数据库。
     """
     try:
         # 尝试连接到指定数据库
         connection = pymysql.connect(**db_config)
-        print(f"Connected to database: {db_config['database']}")
+        adapter.info(f"Connected to database: {db_config['database']}")
         return connection
     except pymysql.err.OperationalError as e:
         # 检查错误是否是因为数据库不存在
         if e.args[0] == 1049:  # 错误代码 1049: Unknown database
-            print(f"Database '{db_config['database']}' does not exist. Creating it...")
+            adapter.info(f"Database '{db_config['database']}' does not exist. Creating it...")
             # 创建不带 database 的配置
             db_config_no_db = db_config.copy()
             db_config_no_db.pop('database')
@@ -374,7 +415,7 @@ def connect_mysql(db_config):
                 with connection.cursor() as cursor:
                     # 创建数据库
                     cursor.execute(f"CREATE DATABASE `{db_config['database']}` CHARACTER SET {db_config['charset']}")
-                    print(f"Database '{db_config['database']}' created successfully.")
+                    adapter.info(f"Database '{db_config['database']}' created successfully.")
                 connection.commit()
             finally:
                 connection.close()
@@ -395,10 +436,8 @@ def exponential_backoff(retry_count, base_delay=0.5, factor=2):
     :return: 计算后的延迟时间
     """
     return base_delay * (factor ** retry_count)
-def get_data(page, url, cookies):
-    """
-    爬取工作线程。
-    
+def get_data(page, url, cookies,adapter):
+    """    
     参数:
         page: 页面对象，提供 `get` 方法。
         url: 目标 URL。
@@ -414,21 +453,21 @@ def get_data(page, url, cookies):
         try:
             # 尝试获取页面数据
             page.get(url=url, cookies=cookies)
-            data = get_elems_multithreaded(url, page)
-            print(f"成功采集数据: {url}")
+            data = get_elems_multithreaded(url, page, adapter)
+            adapter.info(f"成功采集数据: {url}")
             return data  # 成功时直接返回数据
         except Exception as e:
             retry_count += 1
-            print(f"Error processing {url}: {e}, retry {retry_count}")
+            adapter.info(f"Error processing {url}: {e}, retry {retry_count}")
             
             # 检查是否已达到最大重试次数
             if retry_count > MAX_RETRIES:
-                print(f"Failed after {MAX_RETRIES} retries: {url}")
+                adapter.info(f"Failed after {MAX_RETRIES} retries: {url}")
                 return None  # 返回 None 表示失败
 
             # 计算延迟时间并等待
             delay = exponential_backoff(retry_count)
-            print(f"重试第 {retry_count} 次，等待 {delay:.2f} 秒后重试...")
+            adapter.info(f"重试第 {retry_count} 次，等待 {delay:.2f} 秒后重试...")
             time.sleep(delay)
 def get_mysql_config():
         # 连接到 MySQL 数据库
@@ -480,7 +519,7 @@ def get_mysql_config():
         """
     return db_config, create_table_sql, insert_sql
 
-def main(child_urls,mode=0):
+def main(child_urls,adapter):
     #参数
     #代理
     #base_url
@@ -492,12 +531,12 @@ def main(child_urls,mode=0):
     browser = Chromium()
     tab = browser.latest_tab
     tab.get('https://item.kongfz.com/book/41478539.html')
-    check_login(tab)
+    check_login(tab,adapter)
     cookies_str = tab.cookies().as_str()
     
-    print(f"登录信息为{cookies_str}")
+    adapter.info(f"登录信息为{cookies_str}")
     cookies = {cookie.split('=')[0].strip(): cookie.split('=')[1].strip() for cookie in cookies_str.split(';')}
-    print(f"登录信息为{cookies}")
+    adapter.info(f"登录信息为{cookies}")
 
 
     browser.close_tabs(tab)
@@ -507,11 +546,11 @@ def main(child_urls,mode=0):
 
     # 五、写入结果
     db_config, create_table_sql, insert_sql = get_mysql_config()
-    with connect_mysql(db_config) as connection:
+    with connect_mysql(db_config,adapter) as connection:
         with connection.cursor() as cursor:
             cursor.execute(create_table_sql)
             for url in child_urls:
-                result = get_data(page,url,cookies=cookies)
+                result = get_data(page,url,cookies=cookies,adapter=adapter)
                 if result:
                     # 准备数据（将每条记录转换为元组）
                     data_to_insert = [
@@ -545,15 +584,16 @@ def main(child_urls,mode=0):
                     # 批量插入数据
                     cursor.executemany(insert_sql, data_to_insert)
                     connection.commit()
-                    print(f"{cursor.rowcount} records inserted successfully.")
+                    adapter.info(f"{cursor.rowcount} records inserted successfully.")
                 else:
-                    print("没有获取到数据")
+                    adapter.info("没有获取到数据")
 
 if __name__ == "__main__":
 
 
-    parser = argparse.ArgumentParser(description="当当网数据采集")
-    parser.add_argument("-m", type=int, required=True, default=0, help="选择采集模式, 0为增量采集, 1为全量采集,2为更新数据库")
+
+    parser = argparse.ArgumentParser(description="孔夫子网数据采集")
+    parser.add_argument("-m", type=int, required=True, default=0, help="选择采集模式, 0为全量采集, 1为增量量采集,2为更新数据库")
     args = parser.parse_args()
     mode = args.m
     # 一、启动爬虫
@@ -562,17 +602,23 @@ if __name__ == "__main__":
     so = SessionOptions()
     page = SessionPage(session_or_options=so)  # 用该配置创建页面对象
 
-
+    if mode == 0:
+        adapter = ModeLoggerAdapter(logger, extra={'mode': '[Full Mode]'})
+    elif mode == 1:
+        adapter = ModeLoggerAdapter(logger, extra={'mode': '[Incremental Mode]'})
+    else:
+        adapter = ModeLoggerAdapter(logger, extra={'mode': '[Database Update Mode]'})
     #二、按照爬取模式获取child_urls
     if mode in [0, 1, 2]:
         # 根据 mode 调用对应的功能
-        child_urls = get_child_urls(base_url, page, output, mode=mode)
+        child_urls = get_child_urls(base_url, page, mode=mode,adapter=adapter,output=output)
     else:
         raise ValueError("Invalid mode. Expected 0 (全量爬取), 1 (增量爬取), or 2 (更新数据库).")
+    
     if len(child_urls) == 0:
-        print("没有需要更新/爬取的数据")
+        adapter.info("没有需要更新/爬取的数据")
     else:
-        main(child_urls,mode)
+        main(child_urls,adapter)
         
 
 
