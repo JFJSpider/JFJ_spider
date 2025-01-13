@@ -99,8 +99,8 @@ def crawl_data(mode: int):
     tab = browser.latest_tab
     # result_data = []
     adapter.info("START CRAWLING DATA FROM JINGDONG!")
-    for page_num in range(15, 200):
-        url = f"{BASE_URL}&pvid=b6a7158aff7444be84eb9ae3c3d6b43c&cid2=3276&isList=0&page={page_num}"
+    for page_num in range(1, 200):
+        url = f"{BASE_URL}&pvid=ecbf645199c843528da9d81e99a5e119&cid2=3276&isList=0&page={page_num}"
         tab.get(url)
         tab.wait.doc_loaded()
         check_login(tab, adapter)
@@ -108,10 +108,10 @@ def crawl_data(mode: int):
         result_li = tab.eles("x://div[@id='J_searchWrap']//div[@id='J_goodsList']//ul//li")
         i = 0
         for li in result_li:
-            i += 1
             result_data = []
             id = li.attr("data-sku")  # id
             if select_data_from_database(f'jingdong_{id}', adapter):
+                i += 1
                 if mode == 1:  # 全量模式
                     adapter.info(f"第{page_num}页第{i}条数据开始更新!")
                     # 采集价格和评论数
@@ -207,7 +207,7 @@ def crawl_data(mode: int):
             edition = ""
             brand = ""
             packages = ""
-            series_title = ""
+            series_titles = ""
             format = ""
             use_paper = ""
             product_code = ""
@@ -230,7 +230,7 @@ def crawl_data(mode: int):
                 if '包装' in li.text:
                     packages = li.text.split('：')[-1]
                 if '丛书名' in li.text:
-                    series_title = li.text.split('：')[-1]
+                    series_titles = li.text.split('：')[-1]
                 if '开本' in li.text:
                     format = li.text.split('：')[-1]
                 if '出版时间' in li.text:
@@ -337,10 +337,10 @@ def crawl_data(mode: int):
                 "preface": preface,
                 "content_intro": content_intro,
                 "ISBN": ISBN,
-                "price": float(price),
+                "price": float(price) if price is not None else None,
                 "evaluation_number": int(comment_num) if comment_num is not None else None,
                 "packages": packages,
-                "series_title": series_title,
+                "series_titles": series_titles,
                 "format": format,
                 "use_paper": use_paper,
                 "edition": edition,
@@ -458,7 +458,7 @@ def save_data_to_database(result_data, adapter):
             "price": result_data[0]["price"],
             "evaluation_number": result_data[0]["evaluation_number"],
             "packages": result_data[0]["packages"],
-            "series_title": result_data[0]["series_title"],
+            "series_titles": result_data[0]["series_titles"],
             "format": result_data[0]["format"],
             "use_paper": result_data[0]["use_paper"],
             "edition": result_data[0]["edition"],
