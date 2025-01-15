@@ -245,7 +245,20 @@ def crawl_data(mode: int):
                 if '字数' in li.text:
                     words = li.text.split('：')[-1]
                     if words == 'null':
-                        words = ""
+                        words = 0  # 如果是 'null'，设置为 0
+                    else:
+                        # 判断是否包含“千字”或“万字”
+                        if '千字' in words:
+                            # 提取前面的数字并转换为整数，然后乘以1000
+                            num = int(words.split('千字')[0])
+                            words = num * 1000
+                        elif '万字' in words:
+                            # 提取前面的数字并转换为整数，然后乘以10000
+                            num = int(words.split('万字')[0])
+                            words = num * 10000
+                        else:
+                            # 如果没有“千字”或“万字”，尝试直接转换为整数
+                            words = int(words)
                 if '正文语种' in li.text:
                     language = li.text.split('：')[-1]
 
@@ -374,11 +387,11 @@ def select_data_from_database(dataid, adapter):
     try:
         # 连接数据库
         connection = psycopg2.connect(
-            host="10.101.221.240",  # 数据库主机地址
-            port="54321",
-            user="reslib",  # 用户名
-            password="1qaz3edc123!@#",  # 密码
-            dbname="reslib"  # 数据库名称
+            host="localhost",  # 仅填写主机名
+            port=5432,  # 指定端口
+            user="postgres",
+            password="root",
+            database="postgres",
         )
         if connection:
             print("成功连接到数据库")
@@ -404,11 +417,11 @@ def update_data_to_database(id, price, evaluation_number, adapter):
     try:
         # 连接到MySQL数据库
         connection = psycopg2.connect(
-            host="10.101.221.240",  # 数据库主机地址
-            port="54321",
-            user="reslib",  # 用户名
-            password="1qaz3edc123!@#",  # 密码
-            dbname="reslib"  # 数据库名称
+            host="localhost",  # 仅填写主机名
+            port=5432,  # 指定端口
+            user="postgres",
+            password="root",
+            database="postgres",
         )
         if connection:
             # print("成功连接到数据库")
@@ -447,11 +460,11 @@ def save_data_to_database(result_data, adapter):
     try:
         # 连接到MySQL数据库
         connection = psycopg2.connect(
-            host="10.101.221.240",  # 数据库主机地址
-            port="54321",
-            user="reslib",  # 用户名
-            password="1qaz3edc123!@#",  # 密码
-            dbname="reslib"  # 数据库名称
+            host="localhost",  # 仅填写主机名
+            port=5432,  # 指定端口
+            user="postgres",
+            password="root",
+            database="postgres",
         )
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         data_dict = {
